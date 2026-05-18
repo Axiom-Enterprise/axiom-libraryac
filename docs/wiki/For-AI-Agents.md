@@ -21,7 +21,7 @@ physics, prediction, event bus) for building one.
 | Package root | `com.github.axiom.ac` |
 | Modules | `axiom-math`, `axiom-api`, `axiom-packet`, `axiom-world`, `axiom-core`, `axiom-plugin`, `axiom-predict` |
 | External deps | PacketEvents 2.12.1 (`compileOnly`), Paper API 1.21.x (`compileOnly`), Gson 2.11.0 |
-| Tests | 226 unit tests (JUnit 6), all passing |
+| Tests | 253 unit tests (JUnit 6), all passing |
 | Published artifacts | none — build from source |
 
 ## Build / test commands
@@ -46,14 +46,17 @@ Windows: use `.\gradlew.bat`. The shell in this environment is PowerShell.
 - `axiom-packet` — `MovementUpdate`, `PlayerDataImpl` (position + rotation
   history), `PlayerRegistry`, `TransactionManager` (RTT smoothing + jitter),
   `TransactionSink`, `PacketPipeline` (optional movement listener).
-- `axiom-world` — `BlockPos`, `BlockState` (collision shape + slipperiness),
-  `WorldCache`, `CollisionEngine`, `PhysicsSimulator`. No deps.
+- `axiom-world` — `BlockPos`, `BlockState` (collision shape, slipperiness,
+  fluid/climbable/bouncy/cobweb traits), `Fluid`, `WorldCache`,
+  `CollisionEngine`, `PhysicsSimulator` (collision mover + walking physics).
+  No deps.
 - `axiom-core` — `MemoryStorageProvider`, `JsonStorageProvider`,
   `CheckRegistry`, `AxiomRuntime`, `AxiomProvider`.
 - `axiom-plugin` — `AxiomPlugin` (Paper `JavaPlugin`), `plugin.yml`.
-- `axiom-predict` — `MovementInput`, `InputSpace`, `PlayerState`,
-  `PredictionEngine`, `PredictionResult`, `MovementPredictor`. Deps:
-  `axiom-math`, `axiom-world`.
+- `axiom-predict` — `MovementInput` (forward/strafe/jump/sprint/sneak),
+  `MovementContext` (effects + elytra), `InputSpace` (72 inputs), `PlayerState`,
+  `PredictionEngine` (branched: walk/water/lava/climb/elytra), `PredictionResult`,
+  `MovementPredictor`. Deps: `axiom-math`, `axiom-world`.
 
 ## Dependency order (compile leaves first)
 
@@ -99,10 +102,12 @@ Reach/aim checks: build on `CombatMath` (eye, hitbox, reach, line of sight) and
 ## Known limitations / future work
 
 - `axiom-predict` movement constants are a 1.21 baseline approximation, not
-  calibrated bit-for-bit — the offset is a relative signal. Tick ordering and
-  the search are exact.
+  calibrated bit-for-bit — the offset is a relative signal. Branch selection,
+  tick ordering, and the input search are exact.
 - `axiom-world` models full cubes and slabs (`BlockState.shape`); shapes that
   exceed a unit cell (fences, walls) are clipped to the cell.
+- `CollisionEngine.raycast` is voxel-granular — it ignores partial collision
+  shapes and stops at the first collidable cell.
 - PacketEvents/Paper glue (`PacketPipeline`, `AxiomPlugin`) compiles against the
   real APIs but is not exercised by unit tests — verify on a live server.
 - `JsonStorageProvider.saveViolation` writes the file synchronously on the

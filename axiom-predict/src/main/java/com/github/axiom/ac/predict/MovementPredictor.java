@@ -20,14 +20,25 @@ public final class MovementPredictor {
 
     /**
      * Returns the best-matching prediction for a player moving from
-     * {@code previous} to {@code actualPosition}.
+     * {@code previous} to {@code actualPosition}, assuming no active
+     * effects or elytra.
      */
     public PredictionResult bestPrediction(PlayerState previous, Vec3 actualPosition) {
+        return bestPrediction(previous, actualPosition, MovementContext.none());
+    }
+
+    /**
+     * Returns the best-matching prediction for a player moving from
+     * {@code previous} to {@code actualPosition} under {@code context}.
+     */
+    public PredictionResult bestPrediction(PlayerState previous, Vec3 actualPosition,
+                                           MovementContext context) {
         Objects.requireNonNull(previous, "previous");
         Objects.requireNonNull(actualPosition, "actualPosition");
+        Objects.requireNonNull(context, "context");
         PredictionResult best = null;
         for (MovementInput input : InputSpace.all()) {
-            PlayerState predicted = engine.predict(previous, input);
+            PlayerState predicted = engine.predict(previous, input, context);
             double offset = predicted.position().distance(actualPosition);
             if (best == null || offset < best.offset()) {
                 best = new PredictionResult(input, predicted, offset);

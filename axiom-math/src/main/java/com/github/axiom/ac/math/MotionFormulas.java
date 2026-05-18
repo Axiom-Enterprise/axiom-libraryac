@@ -42,7 +42,82 @@ public final class MotionFormulas {
     /** Per-tick horizontal acceleration of input while airborne. */
     public static final double AIR_ACCELERATION = 0.02;
 
+    /** Per-axis velocity multiplier (drag) for a player in water. */
+    public static final double WATER_DRAG = 0.8;
+
+    /** Per-axis velocity multiplier (drag) for a player in lava. */
+    public static final double LAVA_DRAG = 0.5;
+
+    /** Downward acceleration applied per tick inside a fluid. */
+    public static final double FLUID_GRAVITY = 0.02;
+
+    /** Per-tick horizontal input acceleration while swimming. */
+    public static final double FLUID_ACCELERATION = 0.02;
+
+    /** Reduced downward acceleration while Slow Falling is active. */
+    public static final double SLOW_FALLING_GRAVITY = 0.01;
+
+    /** Maximum height a player steps up without jumping. */
+    public static final double STEP_HEIGHT = 0.6;
+
+    /** Upward speed of a player climbing a ladder or vine. */
+    public static final double CLIMB_UP_SPEED = 0.2;
+
+    /** Greatest downward speed while holding onto a climbable block. */
+    public static final double CLIMB_FALL_CLAMP = 0.15;
+
+    /** Horizontal speed clamp while on a climbable block. */
+    public static final double CLIMB_HORIZONTAL_CLAMP = 0.15;
+
+    /** Per-axis velocity multipliers for a player caught in a cobweb. */
+    public static final double COBWEB_DRAG_HORIZONTAL = 0.25;
+
+    /** Vertical velocity multiplier for a player caught in a cobweb. */
+    public static final double COBWEB_DRAG_VERTICAL = 0.05;
+
+    /** Target upward velocity contributed per Levitation level. */
+    public static final double LEVITATION_ACCELERATION = 0.05;
+
+    /** Blend factor pulling vertical velocity toward the Levitation target. */
+    public static final double LEVITATION_BLEND = 0.2;
+
     private MotionFormulas() {
+    }
+
+    /**
+     * Vertical velocity after one tick of reduced Slow Falling
+     * gravity and the usual drag.
+     */
+    public static double nextVerticalVelocitySlowFalling(double velocityY) {
+        return (velocityY - SLOW_FALLING_GRAVITY) * VERTICAL_DRAG;
+    }
+
+    /**
+     * Vertical velocity after one tick inside a fluid: the velocity
+     * is dragged toward zero and then nudged down by buoyant gravity.
+     *
+     * @param velocityY current vertical velocity
+     * @param drag      fluid drag ({@link #WATER_DRAG} or {@link #LAVA_DRAG})
+     */
+    public static double nextVerticalVelocityInFluid(double velocityY, double drag) {
+        return velocityY * drag - FLUID_GRAVITY;
+    }
+
+    /**
+     * Vertical velocity after one tick of Levitation: the velocity is
+     * blended toward an upward target proportional to the effect
+     * level.
+     *
+     * @param velocityY        current vertical velocity
+     * @param levitationLevel  Levitation level; must be positive
+     */
+    public static double nextVerticalVelocityLevitation(double velocityY,
+                                                        int levitationLevel) {
+        if (levitationLevel <= 0) {
+            throw new IllegalArgumentException("levitationLevel must be positive");
+        }
+        double target = LEVITATION_ACCELERATION * levitationLevel;
+        return velocityY + (target - velocityY) * LEVITATION_BLEND;
     }
 
     /**

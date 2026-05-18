@@ -23,7 +23,10 @@ public final class InputSpace {
             for (int strafe : AXES) {
                 for (boolean jump : FLAGS) {
                     for (boolean sprint : FLAGS) {
-                        inputs.add(new MovementInput(forward, strafe, jump, sprint));
+                        for (boolean sneak : FLAGS) {
+                            inputs.add(new MovementInput(forward, strafe,
+                                    jump, sprint, sneak));
+                        }
                     }
                 }
             }

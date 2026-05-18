@@ -115,6 +115,46 @@ class PhysicsSimulatorTest {
     }
 
     @Test
+    void stepsUpOntoASlabLedge() {
+        // Floor at y = 63; a slab ledge at y = 64 just east of the player.
+        world.setBlock(new BlockPos(0, 63, 0), BlockState.SOLID);
+        world.setBlock(new BlockPos(1, 63, 0), BlockState.SOLID);
+        world.setBlock(new BlockPos(1, 64, 0), BlockState.BOTTOM_SLAB);
+
+        Aabb box = playerBox(0.5, 64.0, 0.5);
+        PhysicsSimulator.Result result =
+                simulator.move(box, new Vec3(0.5, 0, 0), true, true);
+
+        // The player steps onto the slab top (y = 64.5) and keeps the move.
+        assertEquals(64.5, result.box().minY(), EPS);
+        assertEquals(0.5, result.velocity().x(), EPS);
+    }
+
+    @Test
+    void doesNotStepUpWhileAirborne() {
+        world.setBlock(new BlockPos(1, 64, 0), BlockState.BOTTOM_SLAB);
+        Aabb box = playerBox(0.5, 64.0, 0.5);
+        PhysicsSimulator.Result result =
+                simulator.move(box, new Vec3(0.5, 0, 0), false, true);
+
+        // Airborne: the ledge is a wall, not a step.
+        assertEquals(64.0, result.box().minY(), EPS);
+        assertEquals(0.0, result.velocity().x(), EPS);
+    }
+
+    @Test
+    void moveWithoutStepAssistTreatsALedgeAsAWall() {
+        world.setBlock(new BlockPos(0, 63, 0), BlockState.SOLID);
+        world.setBlock(new BlockPos(1, 64, 0), BlockState.BOTTOM_SLAB);
+        Aabb box = playerBox(0.5, 64.0, 0.5);
+        PhysicsSimulator.Result result =
+                simulator.move(box, new Vec3(0.5, 0, 0), true, false);
+
+        assertEquals(64.0, result.box().minY(), EPS);
+        assertEquals(0.0, result.velocity().x(), EPS);
+    }
+
+    @Test
     void slabFloorSupportsThePlayerAtHalfHeight() {
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {

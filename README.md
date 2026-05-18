@@ -65,7 +65,7 @@ runtime.eventBus().channel(FlagEvent.class).subscribe(event ->
 
 ```bash
 ./gradlew build        # build and test every module
-./gradlew test         # run the full test suite (226 tests)
+./gradlew test         # run the full test suite (253 tests)
 ```
 
 On Windows use `.\gradlew.bat`.
@@ -92,13 +92,14 @@ plans in [`docs/superpowers/plans/`](docs/superpowers/plans).
 
 ## Status
 
-All seven modules of the design are implemented and tested (226 unit tests).
-The `axiom-plugin` bootstrap now drives inspection per movement packet and
-persists violations to JSON; the PacketEvents/Paper glue compiles against the
-real dependencies but should be exercised on a live server before production
-use. The `axiom-predict` tick ordering matches Minecraft's `travel` (friction
-decay, then input acceleration, then collision); the movement constants are a
-documented 1.21 baseline approximation — see
+All seven modules of the design are implemented and tested (253 unit tests).
+The `axiom-plugin` bootstrap drives inspection per movement packet and persists
+violations to JSON; the PacketEvents/Paper glue compiles against the real
+dependencies but should be exercised on a live server before production use.
+The `axiom-predict` engine reproduces Minecraft's branched movement model —
+walking, water, lava, climbing, and elytra, with potion effects, sprint-jump,
+slime bounce, and cobweb — with exact tick ordering and a documented 1.21
+baseline constant set. See
 [the prediction docs](docs/wiki/API-Reference.md#axiom-predict).
 
 ## License

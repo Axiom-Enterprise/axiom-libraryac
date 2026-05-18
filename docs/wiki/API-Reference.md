@@ -45,12 +45,16 @@ Package `com.github.axiom.ac.math`. Pure, dependency-free, deterministic.
 ### Physics formulas
 
 - **`MotionFormulas`** — pure Minecraft 1.21 movement formulas:
-  `nextVerticalVelocity`, `horizontalFriction`, `nextHorizontalVelocity`,
-  `jumpVelocity(int boostLevel)`, `groundAcceleration(friction, sprint)`
-  (input acceleration scaled by the inverse cube of the surface friction),
-  `airAcceleration(sprint)`, plus constants (`GRAVITY`, `VERTICAL_DRAG`,
-  `AIR_FRICTION`, `DEFAULT_SLIPPERINESS`, `BASE_JUMP_VELOCITY`, `WALK_SPEED`,
-  `SPRINT_MULTIPLIER`, `GROUND_ACCELERATION_CONSTANT`, `AIR_ACCELERATION`).
+  `nextVerticalVelocity`, `nextVerticalVelocitySlowFalling`,
+  `nextVerticalVelocityInFluid(velocityY, drag)`,
+  `nextVerticalVelocityLevitation(velocityY, level)`, `horizontalFriction`,
+  `nextHorizontalVelocity`, `jumpVelocity(int boostLevel)`,
+  `groundAcceleration(friction, sprint)` (input acceleration scaled by the
+  inverse cube of the surface friction), `airAcceleration(sprint)`, plus
+  constants for gravity, drag, friction, fluids (`WATER_DRAG`, `LAVA_DRAG`,
+  `FLUID_GRAVITY`, `FLUID_ACCELERATION`), climbing (`CLIMB_UP_SPEED`,
+  `CLIMB_FALL_CLAMP`, `CLIMB_HORIZONTAL_CLAMP`), cobweb, levitation, slow
+  falling, and `STEP_HEIGHT`.
 
 ### Reach & aim
 
@@ -129,28 +133,36 @@ Package `com.github.axiom.ac.world`. Pure, dependency-free.
 
 - **`BlockPos(int x, int y, int z)`** — block coordinate; `of(Vec3)` floors a
   position.
-- **`BlockState`** — a block's collision shape and surface friction. The
-  collision shape is a list of cell-local boxes (components in `[0, 1]`).
-  Constants: `SOLID`, `PASSABLE`, `UNKNOWN` (uncached / desynced),
-  `ICE` / `PACKED_ICE` / `BLUE_ICE`, `SLIME_BLOCK`, `BOTTOM_SLAB` / `TOP_SLAB`.
-  Factories `cube(name, slipperiness)` and `shape(name, slipperiness, Aabb...)`.
-  Queries `collisionBoxes()`, `slipperiness()`, `hasCollision()`,
-  `isPassable()`, `isUnknown()`.
+- **`Fluid`** — `NONE`, `WATER`, `LAVA`: the fluid a block contributes.
+- **`BlockState`** — a block's collision shape, surface friction, and material
+  traits. The collision shape is a list of cell-local boxes (components in
+  `[0, 1]`). Constants: `SOLID`, `PASSABLE`, `UNKNOWN` (uncached / desynced),
+  `ICE` / `PACKED_ICE` / `BLUE_ICE`, `SLIME_BLOCK`, `SOUL_SAND`, `HONEY_BLOCK`,
+  `BOTTOM_SLAB` / `TOP_SLAB`, `WATER`, `LAVA`, `LADDER`, `VINE`, `SCAFFOLDING`,
+  `COBWEB`. Factories `cube(name, slipperiness)`, `shape(name, slipperiness,
+  Aabb...)`, and `builder(name)` (fluent: `fullCube`, `shape`, `slipperiness`,
+  `fluid`, `climbable`, `bouncy`, `cobweb`, `speedMultiplier`). Queries
+  `collisionBoxes()`, `slipperiness()`, `fluid()`, `isClimbable()`,
+  `isBouncy()`, `isCobweb()`, `speedMultiplier()`, `hasCollision()`,
+  `isFluid()`, `isPassable()`, `isUnknown()`.
 - **`WorldCache`** — `setBlock(BlockPos, BlockState)`, `blockAt`, `isSolid`
   (now "collidable"), `clear`, `size`. **You must populate it** from block
   updates for collision to be meaningful.
 - **`CollisionEngine(WorldCache)`** — `collides(Aabb)` (does the box overlap
   any block's collision shape?), `raycast(Ray, maxDistance)` (Amanatides–Woo
   voxel traversal, returns the first collidable `BlockPos`), `world()`.
-- **`PhysicsSimulator(CollisionEngine)`** — `simulate(...)` returns a
-  `Result(Aabb box, Vec3 velocity, boolean onGround)`. One tick, in
-  Minecraft's order: friction decay (ground friction is `slipperiness * 0.91`,
-  air friction is the bare `0.91`), then the caller's input acceleration, then
-  axis-by-axis collision resolution. Overloads: `simulate(box, velocity,
-  onGround)`, `simulate(box, velocity, inputAcceleration, onGround)` (both read
-  the surface slipperiness from the block below), and `simulate(box, velocity,
-  inputAcceleration, onGround, slipperiness)`. `collision()` exposes the
-  engine. Shaped blocks (slabs) collide with only their occupied sub-cell.
+- **`PhysicsSimulator(CollisionEngine)`** — two layers.
+  `move(box, velocity, onGround, stepAssist)` is the pure collision mover:
+  axis-by-axis resolution plus, when `stepAssist` is set and the player is
+  grounded, stepping up ledges no taller than `STEP_HEIGHT`.
+  `simulate(...)` adds the walking-physics velocity update (friction decay —
+  ground `slipperiness * 0.91`, air bare `0.91` — then input acceleration) and
+  calls `move`; overloads `simulate(box, velocity, onGround)`,
+  `simulate(box, velocity, inputAcceleration, onGround)`, and
+  `simulate(box, velocity, inputAcceleration, onGround, slipperiness)`. Also
+  `collision()`, `slipperinessBelow(box)`, `supportingBlock(box)`. Every result
+  is a `Result(Aabb box, Vec3 velocity, boolean onGround)`. Shaped blocks
+  (slabs) collide with only their occupied sub-cell.
 
 ---
 
@@ -175,27 +187,40 @@ Package `com.github.axiom.ac.core`.
 
 Package `com.github.axiom.ac.predict`. The movement-prediction engine.
 
-- **`MovementInput(int forward, int strafe, boolean jump, boolean sprint)`** —
-  one candidate set of client inputs; axes in `{-1, 0, 1}`. `none()`.
-- **`InputSpace`** — `all()` returns the 36 candidate inputs.
-- **`PlayerState(Vec3 position, Vec3 velocity, float yaw, boolean onGround)`** —
-  a movement snapshot.
+- **`MovementInput(int forward, int strafe, boolean jump, boolean sprint,
+  boolean sneak)`** — one candidate set of client inputs; axes in `{-1, 0, 1}`.
+  A four-argument constructor leaves sneak unpressed. `none()`,
+  `isSprintingForward()` (sprint only counts with forward held),
+  `hasDirectionalInput()`.
+- **`MovementContext(int jumpBoost, int speedAmplifier, int slownessAmplifier,
+  int levitationLevel, boolean slowFalling, boolean elytra)`** — the slowly
+  changing player attributes a prediction depends on. `none()`,
+  `speedEffectMultiplier()`, `hasLevitation()`.
+- **`InputSpace`** — `all()` returns the 72 candidate inputs (forward × strafe
+  × jump × sprint × sneak).
+- **`PlayerState(Vec3 position, Vec3 velocity, float yaw, float pitch,
+  boolean onGround)`** — a movement snapshot; `rotation()`. A four-argument
+  constructor leaves pitch level.
 - **`PredictionEngine(PhysicsSimulator)`** — `predict(PlayerState,
-  MovementInput)` returns the next `PlayerState`.
+  MovementInput[, MovementContext])` returns the next `PlayerState`. It selects
+  a movement branch per tick — walking/air, water, lava, climbing, or elytra —
+  and applies sprint rules, sneak slowdown, Jump Boost, the sprint-jump
+  impulse, Speed/Slowness, Levitation, Slow Falling, soul-sand and honey
+  slowdown, slime bounce, and cobweb entanglement.
 - **`PredictionResult(MovementInput input, PlayerState predicted, double offset)`**.
 - **`MovementPredictor(PredictionEngine)`** — `bestPrediction(PlayerState
-  previous, Vec3 actualPosition)` searches every input and returns the closest
-  match. The `offset` is the cheat signal: near zero for legitimate play,
-  large when no legitimate input explains the move.
+  previous, Vec3 actualPosition[, MovementContext])` searches every input and
+  returns the closest match. The `offset` is the cheat signal: near zero for
+  legitimate play, large when no legitimate input explains the move.
 
-> **Accuracy note.** The `PredictionEngine` tick ordering matches Minecraft's
-> `travel`: friction decay (ground vs air, surface slipperiness read from the
-> block beneath the player), then `moveRelative` input acceleration (scaled by
-> the inverse cube of the surface friction on the ground, a fixed value in the
-> air), then axis-by-axis collision. The ordering and search are exact; the
-> movement constants are a documented 1.21 *baseline approximation*, not yet
-> calibrated bit-for-bit to a specific game version — treat the offset as a
-> relative signal. Final constant calibration is acknowledged future work.
+> **Accuracy note.** The `PredictionEngine` reproduces Minecraft's branched
+> `travel` model — branch selection (elytra, water, lava, climbable, walking),
+> tick ordering (friction/medium decay, then input acceleration, then
+> axis-by-axis collision with step assistance), and the environmental and
+> effect modifiers — exactly. The movement *constants* are a documented 1.21
+> *baseline approximation*, not yet calibrated bit-for-bit to a specific game
+> version — treat the offset as a relative signal. Final constant calibration
+> is acknowledged future work.
 
 ---
 

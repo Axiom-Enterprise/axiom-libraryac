@@ -30,4 +30,20 @@ class PlayerStateTest {
         assertThrows(NullPointerException.class,
                 () -> new PlayerState(new Vec3(0, 0, 0), null, 0.0f, false));
     }
+
+    @Test
+    void legacyConstructorLeavesPitchLevel() {
+        PlayerState state = new PlayerState(new Vec3(0, 0, 0), new Vec3(0, 0, 0),
+                45.0f, true);
+        assertEquals(0.0f, state.pitch());
+    }
+
+    @Test
+    void exposesPitchAndRotation() {
+        PlayerState state = new PlayerState(new Vec3(0, 0, 0), new Vec3(0, 0, 0),
+                90.0f, -30.0f, true);
+        assertEquals(-30.0f, state.pitch());
+        assertEquals(90.0f, state.rotation().yaw());
+        assertEquals(-30.0f, state.rotation().pitch());
+    }
 }

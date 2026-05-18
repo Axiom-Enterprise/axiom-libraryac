@@ -75,4 +75,34 @@ class MotionFormulasTest {
         assertEquals(0.02, MotionFormulas.airAcceleration(false), EPS);
         assertEquals(0.026, MotionFormulas.airAcceleration(true), EPS);
     }
+
+    @Test
+    void slowFallingUsesReducedGravity() {
+        // From rest: (0 - 0.01) * 0.98 = -0.0098.
+        assertEquals(-0.0098, MotionFormulas.nextVerticalVelocitySlowFalling(0.0), EPS);
+    }
+
+    @Test
+    void fluidVelocityDragsThenSinks() {
+        // 1.0 * 0.8 water drag - 0.02 buoyant gravity = 0.78.
+        assertEquals(0.78,
+                MotionFormulas.nextVerticalVelocityInFluid(1.0, MotionFormulas.WATER_DRAG),
+                EPS);
+        // From rest the player sinks by the fluid gravity alone.
+        assertEquals(-0.02,
+                MotionFormulas.nextVerticalVelocityInFluid(0.0, MotionFormulas.WATER_DRAG),
+                EPS);
+    }
+
+    @Test
+    void levitationBlendsTowardAnUpwardTarget() {
+        // From rest, level 1: 0 + (0.05 - 0) * 0.2 = 0.01.
+        assertEquals(0.01, MotionFormulas.nextVerticalVelocityLevitation(0.0, 1), EPS);
+    }
+
+    @Test
+    void levitationRejectsNonPositiveLevel() {
+        assertThrows(IllegalArgumentException.class,
+                () -> MotionFormulas.nextVerticalVelocityLevitation(0.0, 0));
+    }
 }
