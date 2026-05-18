@@ -1,7 +1,10 @@
 package com.github.axiom.ac.api;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -35,6 +38,18 @@ class EventBusTest {
 
         bus.publish("hello");
 
-        assertEquals(null, received.get());
+        assertNull(received.get());
+    }
+
+    @Test
+    void publishWithNoChannelDropsEventSilently() {
+        EventBus bus = new EventBus();
+        assertDoesNotThrow(() -> bus.publish("nobody is listening"));
+    }
+
+    @Test
+    void publishRejectsNullEvent() {
+        EventBus bus = new EventBus();
+        assertThrows(NullPointerException.class, () -> bus.publish(null));
     }
 }

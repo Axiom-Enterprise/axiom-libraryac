@@ -9,6 +9,9 @@ import java.util.UUID;
  * Fired when a check flags a player with a {@link Violation}.
  * Cancelling this event asks the runtime to suppress the default
  * consequence (for example a configured punishment).
+ *
+ * <p>Not thread-safe: this event is mutable and must be inspected
+ * and cancelled on the publishing thread.
  */
 public final class FlagEvent implements Cancellable {
 

@@ -1,6 +1,7 @@
 package com.github.axiom.ac.api;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -28,6 +29,7 @@ public final class EventBus {
      */
     @SuppressWarnings("unchecked")
     public <T> void publish(T event) {
+        Objects.requireNonNull(event, "event");
         EventChannel<T> channel = (EventChannel<T>) channels.get(event.getClass());
         if (channel != null) {
             channel.publish(event);

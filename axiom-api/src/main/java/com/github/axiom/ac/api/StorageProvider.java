@@ -7,6 +7,9 @@ import java.util.UUID;
  * Pluggable persistence SPI. The runtime ships in-memory and JSON
  * implementations; consumers may supply their own (for example
  * SQL-backed) implementation.
+ *
+ * <p>Implementations may throw an unchecked exception on an I/O
+ * failure; callers should be prepared for that.
  */
 public interface StorageProvider {
 
