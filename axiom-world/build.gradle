@@ -1,0 +1,6 @@
+// axiom-world: server-side world model — block cache, collision
+// engine, physics simulator. Pure geometry math; depends only on
+// axiom-math. Build configuration is inherited from the root.
+dependencies {
+    implementation project(':axiom-math')
+}
