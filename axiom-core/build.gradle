@@ -1,0 +1,10 @@
+// axiom-core: the runtime that wires every module together —
+// storage providers, the check registry, and the central runtime.
+// Fully unit-tested; depends on all four prior modules and Gson.
+dependencies {
+    implementation project(':axiom-api')
+    implementation project(':axiom-math')
+    implementation project(':axiom-packet')
+    implementation project(':axiom-world')
+    implementation 'com.google.code.gson:gson:2.11.0'
+}

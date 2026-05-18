@@ -1,0 +1,8 @@
+name: AxiomAC
+version: 1.0-SNAPSHOT
+main: com.github.axiom.ac.plugin.AxiomPlugin
+api-version: '1.21'
+author: Carlo Maria Cardí
+description: Axiom AC anticheat toolkit runtime.
+depend:
+  - packetevents
