@@ -51,11 +51,17 @@ public final class AxiomPlugin extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
+        if (runtime == null) {
+            return;
+        }
         runtime.handlePlayerJoin(event.getPlayer().getUniqueId());
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        if (runtime == null) {
+            return;
+        }
         runtime.handlePlayerQuit(event.getPlayer().getUniqueId());
     }
 }
