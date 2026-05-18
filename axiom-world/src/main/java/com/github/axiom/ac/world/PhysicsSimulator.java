@@ -17,17 +17,18 @@ import java.util.Objects;
  * (water, lava, climbing, elytra) compute their own velocity and call
  * {@link #move} directly.
  */
-public final class PhysicsSimulator {
+public record PhysicsSimulator(CollisionEngine collision) {
 
     private static final int SETTLE_ITERATIONS = 40;
-
-    private final CollisionEngine collision;
 
     public PhysicsSimulator(CollisionEngine collision) {
         this.collision = Objects.requireNonNull(collision, "collision");
     }
 
-    /** The collision engine, and through it the world, this simulator uses. */
+    /**
+     * The collision engine, and through it the world, this simulator uses.
+     */
+    @Override
     public CollisionEngine collision() {
         return collision;
     }
@@ -93,6 +94,7 @@ public final class PhysicsSimulator {
         if (collision.collides(afterY.offset(0.0, step, 0.0))) {
             return null;
         }
+
         Aabb raised = afterY.offset(0.0, step, 0.0);
 
         double rx = collision.collides(raised.offset(wantX, 0.0, 0.0)) ? 0.0 : wantX;
@@ -197,7 +199,9 @@ public final class PhysicsSimulator {
                 : MotionFormulas.DEFAULT_SLIPPERINESS;
     }
 
-    /** The block state directly beneath {@code box}. */
+    /**
+     * The block state directly beneath {@code box}.
+     */
     public BlockState supportingBlock(Aabb box) {
         double centreX = (box.minX() + box.maxX()) / 2.0;
         double centreZ = (box.minZ() + box.maxZ()) / 2.0;
