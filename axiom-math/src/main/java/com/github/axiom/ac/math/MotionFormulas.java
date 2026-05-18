@@ -81,7 +81,102 @@ public final class MotionFormulas {
     /** Blend factor pulling vertical velocity toward the Levitation target. */
     public static final double LEVITATION_BLEND = 0.2;
 
+    /** Velocity added along the look vector per tick of a firework boost. */
+    public static final double FIREWORK_LOOK_GAIN = 0.1;
+
+    /** Look-aligned target speed a firework boost converges toward. */
+    public static final double FIREWORK_TARGET_FACTOR = 1.5;
+
+    /** Per-tick blend factor pulling glide velocity toward the firework target. */
+    public static final double FIREWORK_CONVERGENCE = 0.5;
+
+    /** Riptide launch speed contributed, along the look vector, per level. */
+    public static final double RIPTIDE_SPEED_PER_LEVEL = 0.75;
+
+    /** Highest Riptide enchantment level. */
+    public static final int RIPTIDE_MAX_LEVEL = 3;
+
+    /** Upward velocity added per tick by an upward bubble column. */
+    public static final double BUBBLE_COLUMN_UP_ACCELERATION = 0.04;
+
+    /** Greatest upward velocity an upward bubble column drives toward. */
+    public static final double BUBBLE_COLUMN_UP_MAX = 0.7;
+
+    /** Downward velocity added per tick by a downward bubble column. */
+    public static final double BUBBLE_COLUMN_DOWN_ACCELERATION = 0.03;
+
+    /** Greatest downward velocity a downward bubble column drives toward. */
+    public static final double BUBBLE_COLUMN_DOWN_MAX = -0.9;
+
+    /** Per-axis horizontal velocity multiplier for a player in powder snow. */
+    public static final double POWDER_SNOW_DRAG_HORIZONTAL = 0.9;
+
+    /** Greatest downward speed while sinking through powder snow. */
+    public static final double POWDER_SNOW_DESCENT_CLAMP = 0.05;
+
+    /** Highest Depth Strider enchantment level. */
+    public static final int DEPTH_STRIDER_MAX_LEVEL = 3;
+
+    /** Water friction a maxed Depth Strider converges the player toward. */
+    public static final double DEPTH_STRIDER_TARGET_FRICTION = 0.546;
+
+    /** Horizontal water friction while the Dolphin's Grace effect is active. */
+    public static final double DOLPHINS_GRACE_FRICTION = 0.96;
+
     private MotionFormulas() {
+    }
+
+    /**
+     * Launch speed, along the look vector, of a Riptide trident
+     * release at the given enchantment level: {@code level + 1}
+     * quarters of three blocks per tick.
+     *
+     * @param riptideLevel Riptide level, {@code 1}..{@link #RIPTIDE_MAX_LEVEL}
+     */
+    public static double riptideLaunchSpeed(int riptideLevel) {
+        if (riptideLevel < 1 || riptideLevel > RIPTIDE_MAX_LEVEL) {
+            throw new IllegalArgumentException(
+                    "riptideLevel must be 1.." + RIPTIDE_MAX_LEVEL);
+        }
+        return RIPTIDE_SPEED_PER_LEVEL * (1 + riptideLevel);
+    }
+
+    /**
+     * Horizontal water friction for a player with the given Depth
+     * Strider level. Depth Strider blends the ordinary {@link
+     * #WATER_DRAG} toward {@link #DEPTH_STRIDER_TARGET_FRICTION}; the
+     * effect is halved while airborne, matching Minecraft's
+     * {@code travel}.
+     *
+     * @param depthStrider Depth Strider level ({@code 0} = none)
+     * @param onGround     whether the player is supported from below
+     */
+    public static double depthStriderWaterFriction(int depthStrider, boolean onGround) {
+        double level = Math.min(Math.max(depthStrider, 0), DEPTH_STRIDER_MAX_LEVEL);
+        if (!onGround) {
+            level *= 0.5;
+        }
+        return WATER_DRAG + (DEPTH_STRIDER_TARGET_FRICTION - WATER_DRAG)
+                * level / DEPTH_STRIDER_MAX_LEVEL;
+    }
+
+    /**
+     * Horizontal water input acceleration for a player with the given
+     * Depth Strider level. Depth Strider blends the ordinary {@link
+     * #FLUID_ACCELERATION} toward the walking move speed; the effect
+     * is halved while airborne.
+     *
+     * @param depthStrider Depth Strider level ({@code 0} = none)
+     * @param onGround     whether the player is supported from below
+     */
+    public static double depthStriderWaterAcceleration(int depthStrider,
+                                                       boolean onGround) {
+        double level = Math.min(Math.max(depthStrider, 0), DEPTH_STRIDER_MAX_LEVEL);
+        if (!onGround) {
+            level *= 0.5;
+        }
+        return FLUID_ACCELERATION + (WALK_SPEED - FLUID_ACCELERATION)
+                * level / DEPTH_STRIDER_MAX_LEVEL;
     }
 
     /**

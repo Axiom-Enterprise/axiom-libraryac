@@ -105,4 +105,39 @@ class MotionFormulasTest {
         assertThrows(IllegalArgumentException.class,
                 () -> MotionFormulas.nextVerticalVelocityLevitation(0.0, 0));
     }
+
+    @Test
+    void riptideLaunchSpeedRisesWithLevel() {
+        assertEquals(1.5, MotionFormulas.riptideLaunchSpeed(1), 1e-9);
+        assertEquals(2.25, MotionFormulas.riptideLaunchSpeed(2), 1e-9);
+        assertEquals(3.0, MotionFormulas.riptideLaunchSpeed(3), 1e-9);
+    }
+
+    @Test
+    void riptideLaunchSpeedRejectsAnOutOfRangeLevel() {
+        assertThrows(IllegalArgumentException.class,
+                () -> MotionFormulas.riptideLaunchSpeed(0));
+        assertThrows(IllegalArgumentException.class,
+                () -> MotionFormulas.riptideLaunchSpeed(4));
+    }
+
+    @Test
+    void depthStriderRaisesWaterFrictionAndAcceleration() {
+        double base = MotionFormulas.depthStriderWaterFriction(0, true);
+        double maxed = MotionFormulas.depthStriderWaterFriction(3, true);
+        assertEquals(MotionFormulas.WATER_DRAG, base, 1e-9);
+        assertEquals(MotionFormulas.DEPTH_STRIDER_TARGET_FRICTION, maxed, 1e-9);
+        assertTrue(MotionFormulas.depthStriderWaterAcceleration(3, true)
+                > MotionFormulas.depthStriderWaterAcceleration(0, true));
+    }
+
+    @Test
+    void depthStriderEffectIsHalvedWhileAirborne() {
+        // Airborne, the effect is weaker, so the friction stays closer
+        // to the unenchanted water drag than the grounded value does.
+        double grounded = MotionFormulas.depthStriderWaterFriction(3, true);
+        double airborne = MotionFormulas.depthStriderWaterFriction(3, false);
+        assertTrue(airborne > grounded);
+        assertTrue(airborne < MotionFormulas.WATER_DRAG);
+    }
 }

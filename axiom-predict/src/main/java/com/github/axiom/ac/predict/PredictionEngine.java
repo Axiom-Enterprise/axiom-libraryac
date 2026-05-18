@@ -5,6 +5,7 @@ import com.github.axiom.ac.math.MotionFormulas;
 import com.github.axiom.ac.math.Vec3;
 import com.github.axiom.ac.world.BlockPos;
 import com.github.axiom.ac.world.BlockState;
+import com.github.axiom.ac.world.BubbleColumn;
 import com.github.axiom.ac.world.Fluid;
 import com.github.axiom.ac.world.PhysicsSimulator;
 import com.github.axiom.ac.world.WorldCache;
@@ -19,10 +20,12 @@ import java.util.Objects;
  *
  * <ul>
  *   <li><b>elytra</b> — gliding flight, lift and drag from the look
- *       vector;</li>
- *   <li><b>water / lava</b> — fluid drag, buoyant sink, swim input;</li>
- *   <li><b>climbable</b> — ladders and vines clamp and drive vertical
- *       motion;</li>
+ *       vector, optionally boosted by a firework rocket;</li>
+ *   <li><b>water / lava</b> — fluid drag, buoyant sink, swim input,
+ *       Depth Strider, Dolphin's Grace, and bubble columns;</li>
+ *   <li><b>powder snow</b> — a bootless player sinks slowly;</li>
+ *   <li><b>climbable</b> — ladders, vines, and scaffolding clamp and
+ *       drive vertical motion;</li>
  *   <li><b>walking</b> — the ordinary ground and air model: friction
  *       decay, then {@code moveRelative} input acceleration scaled by
  *       the inverse cube of the surface friction, then collision with
@@ -91,15 +94,29 @@ public final class PredictionEngine {
                     velocity.z() * MotionFormulas.COBWEB_DRAG_HORIZONTAL);
         }
 
+        Vec3 look = previous.rotation().directionVector();
+        if (context.hasRiptideLaunch()) {
+            velocity = velocity.add(look.scale(
+                    MotionFormulas.riptideLaunchSpeed(context.riptideLevel())));
+        }
+
+        boolean gliding = context.elytra() && !previous.onGround()
+                && !env.water() && !env.lava();
+        if (gliding && context.fireworkBoost()) {
+            velocity = applyFireworkBoost(velocity, look);
+        }
+
         PhysicsSimulator.Result result;
-        if (context.elytra() && !previous.onGround() && !env.water() && !env.lava()) {
+        if (gliding) {
             result = elytraTick(previous, box, velocity);
         } else if (env.water()) {
-            result = fluidTick(previous, input, box, velocity, MotionFormulas.WATER_DRAG);
+            result = fluidTick(previous, input, box, velocity, env, context);
         } else if (env.lava()) {
-            result = fluidTick(previous, input, box, velocity, MotionFormulas.LAVA_DRAG);
+            result = fluidTick(previous, input, box, velocity, env, context);
+        } else if (env.powderSnow()) {
+            result = powderSnowTick(previous, input, box, velocity);
         } else if (env.climbable()) {
-            result = climbTick(previous, input, box, velocity);
+            result = climbTick(previous, input, box, velocity, env);
         } else {
             result = walkTick(previous, input, context, box, velocity, env);
         }
@@ -177,25 +194,115 @@ public final class PredictionEngine {
 
     // ---- fluids (water / lava) ------------------------------------------
 
+    /**
+     * One tick in water or lava. Horizontal motion decays under the
+     * fluid drag and is driven by the swim input; in water that drag
+     * and acceleration are raised by Depth Strider and overridden by
+     * Dolphin's Grace. Vertical motion sinks under buoyant gravity,
+     * rises with the jump (swim) impulse, and is overridden by a
+     * bubble column current.
+     */
     private PhysicsSimulator.Result fluidTick(PlayerState previous, MovementInput input,
-                                              Aabb box, Vec3 velocity, double drag) {
-        Vec3 inputAccel = inputAcceleration(previous.yaw(), input,
-                MotionFormulas.FLUID_ACCELERATION);
+                                              Aabb box, Vec3 velocity,
+                                              Environment env, MovementContext context) {
+        boolean water = env.water();
+        double verticalDrag = water ? MotionFormulas.WATER_DRAG : MotionFormulas.LAVA_DRAG;
 
-        double wantX = velocity.x() * drag + inputAccel.x();
-        double wantZ = velocity.z() * drag + inputAccel.z();
-        double wantY = MotionFormulas.nextVerticalVelocityInFluid(velocity.y(), drag);
+        double horizontalDrag;
+        double acceleration;
+        if (water) {
+            horizontalDrag = context.dolphinsGrace()
+                    ? MotionFormulas.DOLPHINS_GRACE_FRICTION
+                    : MotionFormulas.depthStriderWaterFriction(
+                            context.depthStrider(), previous.onGround());
+            acceleration = MotionFormulas.depthStriderWaterAcceleration(
+                    context.depthStrider(), previous.onGround());
+        } else {
+            horizontalDrag = MotionFormulas.LAVA_DRAG;
+            acceleration = MotionFormulas.FLUID_ACCELERATION;
+        }
+
+        Vec3 inputAccel = inputAcceleration(previous.yaw(), input, acceleration);
+
+        double wantX = velocity.x() * horizontalDrag + inputAccel.x();
+        double wantZ = velocity.z() * horizontalDrag + inputAccel.z();
+        double wantY = MotionFormulas.nextVerticalVelocityInFluid(
+                velocity.y(), verticalDrag);
         if (input.jump()) {
             wantY += SWIM_UP_IMPULSE;
+        }
+        wantY = applyBubbleColumn(wantY, env.bubbleColumn());
+
+        return simulator.move(box, new Vec3(wantX, wantY, wantZ),
+                previous.onGround(), false);
+    }
+
+    /** Vertical velocity after a bubble column's current, if any. */
+    private static double applyBubbleColumn(double wantY, BubbleColumn column) {
+        return switch (column) {
+            case UPWARD -> Math.min(MotionFormulas.BUBBLE_COLUMN_UP_MAX,
+                    wantY + MotionFormulas.BUBBLE_COLUMN_UP_ACCELERATION);
+            case DOWNWARD -> Math.max(MotionFormulas.BUBBLE_COLUMN_DOWN_MAX,
+                    wantY - MotionFormulas.BUBBLE_COLUMN_DOWN_ACCELERATION);
+            case NONE -> wantY;
+        };
+    }
+
+    // ---- powder snow -----------------------------------------------------
+
+    /**
+     * One tick sinking through powder snow. Horizontal motion decays
+     * under a mild drag and is driven by the air input; the descent is
+     * clamped to a slow sink, and a grounded player can still jump
+     * free.
+     *
+     * <p>This models a player without leather boots; a player wearing
+     * them stands on the block instead, which the world layer reports
+     * as ordinary collision.
+     */
+    private PhysicsSimulator.Result powderSnowTick(PlayerState previous,
+                                                   MovementInput input, Aabb box,
+                                                   Vec3 velocity) {
+        Vec3 inputAccel = inputAcceleration(previous.yaw(), input,
+                MotionFormulas.airAcceleration(false));
+
+        double wantX = velocity.x() * MotionFormulas.POWDER_SNOW_DRAG_HORIZONTAL
+                + inputAccel.x();
+        double wantZ = velocity.z() * MotionFormulas.POWDER_SNOW_DRAG_HORIZONTAL
+                + inputAccel.z();
+        double wantY = MotionFormulas.nextVerticalVelocity(velocity.y());
+        if (wantY < 0.0) {
+            wantY = Math.max(wantY, -MotionFormulas.POWDER_SNOW_DESCENT_CLAMP);
+        }
+        if (input.jump() && previous.onGround()) {
+            wantY = MotionFormulas.jumpVelocity(0);
         }
         return simulator.move(box, new Vec3(wantX, wantY, wantZ),
                 previous.onGround(), false);
     }
 
+    /**
+     * Velocity after one tick of a firework rocket boost while
+     * gliding: each axis is pulled toward {@code 1.5} times the look
+     * vector, the impulse Minecraft's rocket entity adds per tick.
+     */
+    private static Vec3 applyFireworkBoost(Vec3 velocity, Vec3 look) {
+        double gain = MotionFormulas.FIREWORK_LOOK_GAIN;
+        double target = MotionFormulas.FIREWORK_TARGET_FACTOR;
+        double converge = MotionFormulas.FIREWORK_CONVERGENCE;
+        return new Vec3(
+                velocity.x() + look.x() * gain
+                        + (look.x() * target - velocity.x()) * converge,
+                velocity.y() + look.y() * gain
+                        + (look.y() * target - velocity.y()) * converge,
+                velocity.z() + look.z() * gain
+                        + (look.z() * target - velocity.z()) * converge);
+    }
+
     // ---- climbing (ladders / vines) -------------------------------------
 
     private PhysicsSimulator.Result climbTick(PlayerState previous, MovementInput input,
-                                              Aabb box, Vec3 velocity) {
+                                              Aabb box, Vec3 velocity, Environment env) {
         Vec3 inputAccel = inputAcceleration(previous.yaw(), input,
                 MotionFormulas.airAcceleration(false));
 
@@ -211,7 +318,8 @@ public final class PredictionEngine {
             wantY = MotionFormulas.CLIMB_UP_SPEED;
         }
         if (input.sneak()) {
-            wantY = 0.0;
+            // A ladder clings on sneak; scaffolding is descended through.
+            wantY = env.scaffolding() ? -MotionFormulas.CLIMB_FALL_CLAMP : 0.0;
         }
         return simulator.move(box, new Vec3(wantX, wantY, wantZ),
                 previous.onGround(), false);
@@ -289,8 +397,9 @@ public final class PredictionEngine {
 
     /** Environmental properties of the cells a player box overlaps. */
     private record Environment(boolean water, boolean lava, boolean climbable,
-                               boolean cobweb, double slipperiness,
-                               double surfaceSpeedMultiplier) {
+                               boolean cobweb, boolean scaffolding,
+                               boolean powderSnow, BubbleColumn bubbleColumn,
+                               double slipperiness, double surfaceSpeedMultiplier) {
     }
 
     /** Scans the world cells {@code box} overlaps and the block below it. */
@@ -300,6 +409,9 @@ public final class PredictionEngine {
         boolean lava = false;
         boolean climbable = false;
         boolean cobweb = false;
+        boolean scaffolding = false;
+        boolean powderSnow = false;
+        BubbleColumn bubbleColumn = BubbleColumn.NONE;
         int minX = (int) Math.floor(box.minX());
         int minY = (int) Math.floor(box.minY());
         int minZ = (int) Math.floor(box.minZ());
@@ -321,11 +433,20 @@ public final class PredictionEngine {
                     if (state.isCobweb()) {
                         cobweb = true;
                     }
+                    if (state.isScaffolding()) {
+                        scaffolding = true;
+                    }
+                    if (state.isPowderSnow()) {
+                        powderSnow = true;
+                    }
+                    if (state.bubbleColumn() != BubbleColumn.NONE) {
+                        bubbleColumn = state.bubbleColumn();
+                    }
                 }
             }
         }
-        return new Environment(water, lava, climbable, cobweb,
-                simulator.slipperinessBelow(box),
+        return new Environment(water, lava, climbable, cobweb, scaffolding,
+                powderSnow, bubbleColumn, simulator.slipperinessBelow(box),
                 simulator.supportingBlock(box).speedMultiplier());
     }
 

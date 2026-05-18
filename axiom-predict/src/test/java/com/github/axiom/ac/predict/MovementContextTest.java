@@ -50,4 +50,38 @@ class MovementContextTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new MovementContext(0, 0, 0, -1, false, false));
     }
+
+    @Test
+    void sixArgFormLeavesFlightStateNeutral() {
+        MovementContext context = new MovementContext(0, 0, 0, 0, false, true);
+        assertTrue(context.elytra());
+        assertFalse(context.fireworkBoost());
+        assertFalse(context.hasRiptideLaunch());
+        assertEquals(0, context.depthStrider());
+    }
+
+    @Test
+    void builderSetsTheFlightAndEnchantmentFields() {
+        MovementContext context = MovementContext.builder()
+                .elytra(true)
+                .fireworkBoost(true)
+                .riptideLevel(3)
+                .depthStrider(2)
+                .dolphinsGrace(true)
+                .build();
+        assertTrue(context.elytra());
+        assertTrue(context.fireworkBoost());
+        assertTrue(context.hasRiptideLaunch());
+        assertEquals(3, context.riptideLevel());
+        assertEquals(2, context.depthStrider());
+        assertTrue(context.dolphinsGrace());
+    }
+
+    @Test
+    void rejectsAnOutOfRangeRiptideLevel() {
+        assertThrows(IllegalArgumentException.class,
+                () -> MovementContext.builder().riptideLevel(4).build());
+        assertThrows(IllegalArgumentException.class,
+                () -> MovementContext.builder().riptideLevel(-1).build());
+    }
 }

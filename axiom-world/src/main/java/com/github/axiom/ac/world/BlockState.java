@@ -83,12 +83,24 @@ public final class BlockState {
     /** A vine: passable, but climbable. */
     public static final BlockState VINE = builder("vine").climbable(true).build();
 
-    /** Scaffolding: passable and climbable. */
+    /** Scaffolding: passable, climbable, and descended through on sneak. */
     public static final BlockState SCAFFOLDING =
-            builder("scaffolding").climbable(true).build();
+            builder("scaffolding").climbable(true).scaffolding(true).build();
 
     /** A cobweb: passable, but entangles and drastically slows motion. */
     public static final BlockState COBWEB = builder("cobweb").cobweb(true).build();
+
+    /** Water carrying an upward bubble column (above soul sand). */
+    public static final BlockState BUBBLE_COLUMN_UPWARD = builder("bubble_column_up")
+            .fluid(Fluid.WATER).bubbleColumn(BubbleColumn.UPWARD).build();
+
+    /** Water carrying a downward bubble column (above magma). */
+    public static final BlockState BUBBLE_COLUMN_DOWNWARD = builder("bubble_column_down")
+            .fluid(Fluid.WATER).bubbleColumn(BubbleColumn.DOWNWARD).build();
+
+    /** Powder snow: passable, but a player without leather boots sinks. */
+    public static final BlockState POWDER_SNOW =
+            builder("powder_snow").powderSnow(true).build();
 
     private final String name;
     private final List<Aabb> collisionBoxes;
@@ -97,16 +109,22 @@ public final class BlockState {
     private final boolean climbable;
     private final boolean bouncy;
     private final boolean cobweb;
+    private final boolean scaffolding;
+    private final boolean powderSnow;
+    private final BubbleColumn bubbleColumn;
     private final double speedMultiplier;
 
     private BlockState(Builder builder) {
         this.name = builder.name;
-        this.collisionBoxes = List.copyOf(builder.boxes);
+        this.collisionBoxes = ShapeNormalizer.normalize(builder.boxes);
         this.slipperiness = builder.slipperiness;
         this.fluid = builder.fluid;
         this.climbable = builder.climbable;
         this.bouncy = builder.bouncy;
         this.cobweb = builder.cobweb;
+        this.scaffolding = builder.scaffolding;
+        this.powderSnow = builder.powderSnow;
+        this.bubbleColumn = builder.bubbleColumn;
         this.speedMultiplier = builder.speedMultiplier;
     }
 
@@ -167,6 +185,21 @@ public final class BlockState {
         return cobweb;
     }
 
+    /** True when this block is scaffolding, descended through on sneak. */
+    public boolean isScaffolding() {
+        return scaffolding;
+    }
+
+    /** True when this block is powder snow, sunk through without boots. */
+    public boolean isPowderSnow() {
+        return powderSnow;
+    }
+
+    /** The bubble column this block carries, or {@link BubbleColumn#NONE}. */
+    public BubbleColumn bubbleColumn() {
+        return bubbleColumn;
+    }
+
     /**
      * Horizontal movement multiplier applied while standing on this
      * block; {@code 1.0} for an ordinary surface, lower for soul sand
@@ -209,13 +242,17 @@ public final class BlockState {
                 && climbable == state.climbable
                 && bouncy == state.bouncy
                 && cobweb == state.cobweb
+                && scaffolding == state.scaffolding
+                && powderSnow == state.powderSnow
+                && bubbleColumn == state.bubbleColumn
                 && Double.compare(speedMultiplier, state.speedMultiplier) == 0;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(name, collisionBoxes, slipperiness, fluid,
-                climbable, bouncy, cobweb, speedMultiplier);
+                climbable, bouncy, cobweb, scaffolding, powderSnow,
+                bubbleColumn, speedMultiplier);
     }
 
     @Override
@@ -233,6 +270,9 @@ public final class BlockState {
         private boolean climbable;
         private boolean bouncy;
         private boolean cobweb;
+        private boolean scaffolding;
+        private boolean powderSnow;
+        private BubbleColumn bubbleColumn = BubbleColumn.NONE;
         private double speedMultiplier = 1.0;
 
         private Builder(String name) {
@@ -292,6 +332,24 @@ public final class BlockState {
             return this;
         }
 
+        /** Marks the block scaffolding (climbable, sneak-descendable). */
+        public Builder scaffolding(boolean scaffolding) {
+            this.scaffolding = scaffolding;
+            return this;
+        }
+
+        /** Marks the block powder snow (a player without boots sinks). */
+        public Builder powderSnow(boolean powderSnow) {
+            this.powderSnow = powderSnow;
+            return this;
+        }
+
+        /** Sets the bubble column this block carries. */
+        public Builder bubbleColumn(BubbleColumn bubbleColumn) {
+            this.bubbleColumn = Objects.requireNonNull(bubbleColumn, "bubbleColumn");
+            return this;
+        }
+
         /** Sets the horizontal movement multiplier; must be positive. */
         public Builder speedMultiplier(double speedMultiplier) {
             if (speedMultiplier <= 0.0) {
@@ -301,7 +359,11 @@ public final class BlockState {
             return this;
         }
 
-        /** Builds the immutable {@link BlockState}. */
+        /**
+         * Builds the immutable {@link BlockState}. The collision shape
+         * is canonicalised through {@link ShapeNormalizer}: degenerate,
+         * duplicate, and enclosed boxes are dropped and the rest sorted.
+         */
         public BlockState build() {
             return new BlockState(this);
         }

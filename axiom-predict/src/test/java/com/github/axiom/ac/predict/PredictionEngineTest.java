@@ -225,4 +225,94 @@ class PredictionEngineTest {
         assertTrue(next.position().z() > 0.0);
         assertTrue(Double.isFinite(next.position().y()));
     }
+
+    @Test
+    void fireworkBoostAcceleratesAnElytraGlide() {
+        PredictionEngine engine = engineInEmptyWorld();
+        PlayerState start = new PlayerState(
+                new Vec3(0, 100, 0), new Vec3(0, 0, 0.2), 0.0f, 0.0f, false);
+
+        double plain = engine.predict(start, MovementInput.none(),
+                MovementContext.builder().elytra(true).build()).position().z();
+        double boosted = engine.predict(start, MovementInput.none(),
+                MovementContext.builder().elytra(true).fireworkBoost(true).build())
+                .position().z();
+
+        // The rocket pulls the glide toward the +Z look vector.
+        assertTrue(boosted > plain);
+    }
+
+    @Test
+    void riptideLaunchesThePlayerAlongTheLookVector() {
+        PredictionEngine engine = engineInEmptyWorld();
+        PlayerState start = new PlayerState(
+                new Vec3(0, 100, 0), new Vec3(0, 0, 0), 0.0f, 0.0f, false);
+
+        PlayerState next = engine.predict(start, MovementInput.none(),
+                MovementContext.builder().riptideLevel(3).build());
+
+        // Level 3 adds three blocks/tick along +Z, far past a still stand.
+        assertTrue(next.position().z() > 2.0);
+    }
+
+    @Test
+    void depthStriderSpeedsUpSwimming() {
+        WorldCache world = new WorldCache();
+        Vec3 feet = new Vec3(0, 64, 0);
+        fillAround(world, feet, BlockState.WATER);
+        PredictionEngine engine = engineOver(world);
+        PlayerState start = new PlayerState(feet, new Vec3(0, 0, 0), 0.0f, true);
+        MovementInput forward = new MovementInput(1, 0, false, false);
+
+        double plain = engine.predict(start, forward, MovementContext.none())
+                .position().z();
+        double strider = engine.predict(start, forward,
+                MovementContext.builder().depthStrider(3).build()).position().z();
+
+        assertTrue(strider > plain);
+    }
+
+    @Test
+    void anUpwardBubbleColumnLiftsThePlayer() {
+        WorldCache world = new WorldCache();
+        Vec3 feet = new Vec3(0, 64, 0);
+        fillAround(world, feet, BlockState.BUBBLE_COLUMN_UPWARD);
+        PredictionEngine engine = engineOver(world);
+        PlayerState start = new PlayerState(feet, new Vec3(0, 0, 0), 0.0f, false);
+
+        PlayerState next = engine.predict(start, MovementInput.none());
+
+        assertTrue(next.position().y() > 64.0);
+    }
+
+    @Test
+    void powderSnowSlowsTheDescentToASink() {
+        WorldCache world = new WorldCache();
+        Vec3 feet = new Vec3(0, 64, 0);
+        fillAround(world, feet, BlockState.POWDER_SNOW);
+        PredictionEngine engine = engineOver(world);
+        PlayerState start = new PlayerState(feet, new Vec3(0, 0, 0), 0.0f, false);
+
+        PlayerState next = engine.predict(start, MovementInput.none());
+
+        // Sinks, but slower than the 0.0784 of a first tick of free fall.
+        assertTrue(next.position().y() < 64.0);
+        assertTrue(64.0 - next.position().y() < 0.0784);
+    }
+
+    @Test
+    void scaffoldingIsDescendedThroughOnSneak() {
+        WorldCache world = new WorldCache();
+        Vec3 feet = new Vec3(0, 64, 0);
+        fillAround(world, feet, BlockState.SCAFFOLDING);
+        PredictionEngine engine = engineOver(world);
+        PlayerState start = new PlayerState(feet, new Vec3(0, 0, 0), 0.0f, false);
+
+        double hold = engine.predict(start,
+                new MovementInput(0, 0, false, false, false)).position().y();
+        double sneak = engine.predict(start,
+                new MovementInput(0, 0, false, false, true)).position().y();
+
+        assertTrue(sneak < hold);
+    }
 }
