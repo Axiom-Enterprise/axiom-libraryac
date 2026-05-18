@@ -1,0 +1,3 @@
+// axiom-math: pure mathematical toolkit. No external dependencies —
+// JDK and JUnit only. All build configuration is inherited from the
+// root `subprojects` block.
