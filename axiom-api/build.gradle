@@ -1,0 +1,6 @@
+// axiom-api: public contracts for the Axiom AC toolkit. Depends only
+// on axiom-math, whose geometry types appear in the public API.
+// Build configuration is inherited from the root `subprojects` block.
+dependencies {
+    implementation project(':axiom-math')
+}
