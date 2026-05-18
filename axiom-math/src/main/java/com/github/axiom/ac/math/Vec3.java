@@ -46,4 +46,20 @@ public record Vec3(double x, double y, double z) {
         double len = length();
         return len == 0.0 ? this : scale(1.0 / len);
     }
+
+    /**
+     * Returns this vector shortened to {@code maxLength} when it is
+     * longer, and unchanged otherwise. Used to cap a velocity at a
+     * physically plausible bound without altering its direction.
+     *
+     * @param maxLength the longest allowed magnitude; must not be
+     *                  negative
+     */
+    public Vec3 clampLength(double maxLength) {
+        if (maxLength < 0.0) {
+            throw new IllegalArgumentException("maxLength must not be negative");
+        }
+        double len = length();
+        return len <= maxLength || len == 0.0 ? this : scale(maxLength / len);
+    }
 }

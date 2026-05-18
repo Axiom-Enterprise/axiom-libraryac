@@ -53,6 +53,21 @@ public record Rotation(float yaw, float pitch) {
     }
 
     /**
+     * This angle in canonical form: the yaw wrapped into
+     * {@code [-180, 180)} and the pitch clamped to {@code [-90, 90]},
+     * the range a vanilla client can report. Raw packet angles drift
+     * outside these bounds across full turns; normalizing first keeps
+     * yaw and pitch deltas honest.
+     */
+    public Rotation normalized() {
+        float wrappedYaw = (float) wrapDegrees(yaw);
+        float clampedPitch = (float) Math.max(-90.0, Math.min(90.0, pitch));
+        return wrappedYaw == yaw && clampedPitch == pitch
+                ? this
+                : new Rotation(wrappedYaw, clampedPitch);
+    }
+
+    /**
      * The unit vector this angle points along, in Minecraft's
      * coordinate frame.
      */

@@ -7,8 +7,14 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Queries collisions between geometry and the cached world. Every
- * solid block is treated as a full unit cube.
+ * Queries collisions between geometry and the cached world. Each
+ * block contributes its own collision shape.
+ *
+ * <p>Every query box is run through {@link AabbNormalizer} first, so a
+ * box that arrives with an inverted axis still resolves correctly, and
+ * the cell range it spans is taken with {@link VoxelNormalizer}, whose
+ * near-integer snapping keeps a face resting on a block boundary from
+ * landing in the wrong cell through floating-point drift.
  */
 public final class CollisionEngine {
 
@@ -25,25 +31,25 @@ public final class CollisionEngine {
 
     /**
      * True when {@code box} overlaps the collision shape of any
-     * cached block. Each block contributes its own cell-local boxes
-     * (a full cube, a slab half, and so on), translated into world
-     * space; a box touched only at a shared face does not count,
-     * matching {@link Aabb}'s strict-overlap rule.
+     * cached block. The box is normalized first, so an inverted axis
+     * is repaired rather than silently missed. Each block contributes
+     * its own cell-local boxes (a full cube, a slab half, and so on),
+     * translated into world space; a box touched only at a shared face
+     * does not count, matching {@link Aabb}'s strict-overlap rule.
      */
     public boolean collides(Aabb box) {
-        int minX = (int) Math.floor(box.minX());
-        int minY = (int) Math.floor(box.minY());
-        int minZ = (int) Math.floor(box.minZ());
-        int maxX = (int) Math.floor(box.maxX());
-        int maxY = (int) Math.floor(box.maxY());
-        int maxZ = (int) Math.floor(box.maxZ());
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
+        Aabb query = AabbNormalizer.normalize(box);
+        BlockPos min = VoxelNormalizer.blockAt(
+                new Vec3(query.minX(), query.minY(), query.minZ()));
+        BlockPos max = VoxelNormalizer.blockAt(
+                new Vec3(query.maxX(), query.maxY(), query.maxZ()));
+        for (int x = min.x(); x <= max.x(); x++) {
+            for (int y = min.y(); y <= max.y(); y++) {
+                for (int z = min.z(); z <= max.z(); z++) {
                     BlockState state = world.blockAt(new BlockPos(x, y, z));
                     for (Aabb local : state.collisionBoxes()) {
                         Aabb worldBox = local.offset(x, y, z);
-                        if (box.intersects(worldBox)) {
+                        if (query.intersects(worldBox)) {
                             return true;
                         }
                     }
@@ -69,14 +75,15 @@ public final class CollisionEngine {
         Vec3 dir = direction.scale(1.0 / length);
         Vec3 origin = ray.origin();
 
-        int x = (int) Math.floor(origin.x());
-        int y = (int) Math.floor(origin.y());
-        int z = (int) Math.floor(origin.z());
+        BlockPos originVoxel = VoxelNormalizer.blockAt(origin);
+        int x = originVoxel.x();
+        int y = originVoxel.y();
+        int z = originVoxel.z();
 
-        BlockPos originVoxel = new BlockPos(x, y, z);
         if (world.isSolid(originVoxel)) {
             return Optional.of(originVoxel);
         }
+
 
         int stepX = signum(dir.x());
         int stepY = signum(dir.y());

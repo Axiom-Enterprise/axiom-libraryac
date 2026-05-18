@@ -72,4 +72,17 @@ class RotationTest {
         Rotation b = new Rotation(95, -30);
         assertTrue(Math.abs(a.angleTo(b) - b.angleTo(a)) < EPS);
     }
+
+    @Test
+    void normalizedWrapsYawAndClampsPitch() {
+        Rotation canonical = new Rotation(450, 130).normalized();
+        assertEquals(90.0, canonical.yaw(), EPS);
+        assertEquals(90.0, canonical.pitch(), EPS);
+    }
+
+    @Test
+    void normalizedKeepsAnInRangeAngle() {
+        Rotation inRange = new Rotation(45, -20);
+        assertEquals(inRange, inRange.normalized());
+    }
 }
