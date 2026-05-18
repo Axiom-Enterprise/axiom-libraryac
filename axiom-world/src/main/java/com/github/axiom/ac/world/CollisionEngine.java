@@ -18,23 +18,34 @@ public final class CollisionEngine {
         this.world = Objects.requireNonNull(world, "world");
     }
 
+    /** The world cache this engine queries. */
+    public WorldCache world() {
+        return world;
+    }
+
     /**
-     * True when {@code box} overlaps any solid block. A block touched
-     * only at a shared face does not count, matching {@link Aabb}'s
-     * strict-overlap rule.
+     * True when {@code box} overlaps the collision shape of any
+     * cached block. Each block contributes its own cell-local boxes
+     * (a full cube, a slab half, and so on), translated into world
+     * space; a box touched only at a shared face does not count,
+     * matching {@link Aabb}'s strict-overlap rule.
      */
     public boolean collides(Aabb box) {
         int minX = (int) Math.floor(box.minX());
         int minY = (int) Math.floor(box.minY());
         int minZ = (int) Math.floor(box.minZ());
-        int maxX = (int) Math.ceil(box.maxX()) - 1;
-        int maxY = (int) Math.ceil(box.maxY()) - 1;
-        int maxZ = (int) Math.ceil(box.maxZ()) - 1;
+        int maxX = (int) Math.floor(box.maxX());
+        int maxY = (int) Math.floor(box.maxY());
+        int maxZ = (int) Math.floor(box.maxZ());
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    if (world.isSolid(new BlockPos(x, y, z))) {
-                        return true;
+                    BlockState state = world.blockAt(new BlockPos(x, y, z));
+                    for (Aabb local : state.collisionBoxes()) {
+                        Aabb worldBox = local.offset(x, y, z);
+                        if (box.intersects(worldBox)) {
+                            return true;
+                        }
                     }
                 }
             }

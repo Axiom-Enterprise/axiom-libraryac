@@ -8,21 +8,43 @@ import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
 import com.github.retrooper.packetevents.protocol.world.Location;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * PacketEvents listener that feeds decoded client movement packets
  * into the {@link PlayerRegistry}. This is the only PacketEvents-aware
  * type in the module; all decoding logic it depends on
  * ({@link MovementUpdate}, {@link PlayerDataImpl}) is PacketEvents-free.
+ *
+ * <p>After a tracked player's data is updated, the configured
+ * movement listener is invoked with that player's id, on the netty
+ * thread. The runtime wires this to its inspection pass, so checks
+ * run once per movement packet — the thread on which {@code Check}s
+ * are contractually safe to run.
  */
 public final class PacketPipeline extends PacketListenerAbstract {
 
     private final PlayerRegistry registry;
+    private final Consumer<UUID> movementListener;
 
+    /**
+     * Creates a pipeline that only updates player data, with no
+     * post-update movement listener.
+     */
     public PacketPipeline(PlayerRegistry registry) {
+        this(registry, uuid -> { });
+    }
+
+    /**
+     * Creates a pipeline that, after updating a tracked player's
+     * data, invokes {@code movementListener} with that player's id.
+     */
+    public PacketPipeline(PlayerRegistry registry, Consumer<UUID> movementListener) {
         super(PacketListenerPriority.NORMAL);
-        this.registry = registry;
+        this.registry = Objects.requireNonNull(registry, "registry");
+        this.movementListener = Objects.requireNonNull(movementListener, "movementListener");
     }
 
     @Override
@@ -39,6 +61,7 @@ public final class PacketPipeline extends PacketListenerAbstract {
             return;
         }
         data.applyMovement(decode(new WrapperPlayClientPlayerFlying(event)));
+        movementListener.accept(uuid);
     }
 
     /** True when {@code type} is one of the client movement packets. */

@@ -21,7 +21,7 @@ physics, prediction, event bus) for building one.
 | Package root | `com.github.axiom.ac` |
 | Modules | `axiom-math`, `axiom-api`, `axiom-packet`, `axiom-world`, `axiom-core`, `axiom-plugin`, `axiom-predict` |
 | External deps | PacketEvents 2.12.1 (`compileOnly`), Paper API 1.21.x (`compileOnly`), Gson 2.11.0 |
-| Tests | 166 unit tests (JUnit 6), all passing |
+| Tests | 226 unit tests (JUnit 6), all passing |
 | Published artifacts | none — build from source |
 
 ## Build / test commands
@@ -37,15 +37,17 @@ Windows: use `.\gradlew.bat`. The shell in this environment is PowerShell.
 
 ## Module map (one line each)
 
-- `axiom-math` — `Vec3`, `Aabb`, `Ray`, `Stats`, `Distribution`, `Gcd`,
-  `Outliers`, `RollingBuffer`, `SlidingWindow`, `MotionFormulas`. No deps.
-- `axiom-api` — `Check`, `PlayerData`, `Violation`, `StorageProvider`,
-  `EventBus`, `EventChannel`, `Subscription`, `Cancellable`; events
-  `FlagEvent`, `CheckFaultEvent`, `PlayerJoinEvent`, `PlayerQuitEvent`.
-- `axiom-packet` — `MovementUpdate`, `PlayerDataImpl`, `PlayerRegistry`,
-  `TransactionManager`, `TransactionSink`, `PacketPipeline`.
-- `axiom-world` — `BlockPos`, `BlockState`, `WorldCache`, `CollisionEngine`,
-  `PhysicsSimulator`. No deps.
+- `axiom-math` — `Vec3`, `Aabb`, `Ray`, `Rotation`, `Stats`, `Distribution`,
+  `Gcd`, `Outliers`, `RollingBuffer`, `SlidingWindow`, `MotionFormulas`,
+  `CombatMath`, `AimAnalysis`. No deps.
+- `axiom-api` — `Check`, `PlayerData` (with rotation history), `Violation`,
+  `StorageProvider`, `EventBus`, `EventChannel`, `Subscription`, `Cancellable`;
+  events `FlagEvent`, `CheckFaultEvent`, `PlayerJoinEvent`, `PlayerQuitEvent`.
+- `axiom-packet` — `MovementUpdate`, `PlayerDataImpl` (position + rotation
+  history), `PlayerRegistry`, `TransactionManager` (RTT smoothing + jitter),
+  `TransactionSink`, `PacketPipeline` (optional movement listener).
+- `axiom-world` — `BlockPos`, `BlockState` (collision shape + slipperiness),
+  `WorldCache`, `CollisionEngine`, `PhysicsSimulator`. No deps.
 - `axiom-core` — `MemoryStorageProvider`, `JsonStorageProvider`,
   `CheckRegistry`, `AxiomRuntime`, `AxiomProvider`.
 - `axiom-plugin` — `AxiomPlugin` (Paper `JavaPlugin`), `plugin.yml`.
@@ -66,10 +68,14 @@ To add detection logic:
    `Optional<Violation> inspect(PlayerData)`.
 2. `runtime.checks().register(check)` on an `AxiomRuntime`.
 3. Subscribe: `runtime.eventBus().channel(FlagEvent.class).subscribe(...)`.
-4. Inspections run on `runtime.inspect(uuid)` — the caller schedules this.
+4. `runtime.inspect(uuid)` runs the checks. Under `axiom-plugin` it is wired to
+   fire per movement packet (netty thread); a standalone embedder schedules it.
 
 `AxiomRuntime` is reached via `AxiomProvider.get()` (when the plugin is
 running) or constructed directly: `new AxiomRuntime(new MemoryStorageProvider())`.
+Reach/aim checks: build on `CombatMath` (eye, hitbox, reach, line of sight) and
+`AimAnalysis` (rotation deltas, snaps, sensitivity GCD) over
+`PlayerData.rotationHistory()`.
 
 ## Conventions to follow when editing
 
@@ -92,14 +98,15 @@ running) or constructed directly: `new AxiomRuntime(new MemoryStorageProvider())
 
 ## Known limitations / future work
 
-- `axiom-predict` physics constants are a baseline approximation, not tuned to
-  a Minecraft version — the offset is a relative signal until calibrated.
-- `axiom-world` treats every solid block as a full unit cube — no partial
-  shapes (slabs, stairs, fluids) yet.
+- `axiom-predict` movement constants are a 1.21 baseline approximation, not
+  calibrated bit-for-bit — the offset is a relative signal. Tick ordering and
+  the search are exact.
+- `axiom-world` models full cubes and slabs (`BlockState.shape`); shapes that
+  exceed a unit cell (fences, walls) are clipped to the cell.
 - PacketEvents/Paper glue (`PacketPipeline`, `AxiomPlugin`) compiles against the
   real APIs but is not exercised by unit tests — verify on a live server.
-- `AxiomRuntime.inspect` is not auto-called per packet/tick — the consumer wires
-  the cadence.
+- `JsonStorageProvider.saveViolation` writes the file synchronously on the
+  calling (netty) thread — batch or offload it before heavy production load.
 
 ## Where the design lives
 

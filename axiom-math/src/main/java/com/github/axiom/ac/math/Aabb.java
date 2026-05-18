@@ -32,4 +32,30 @@ public record Aabb(double minX, double minY, double minZ,
         return new Aabb(minX + dx, minY + dy, minZ + dz,
                         maxX + dx, maxY + dy, maxZ + dz);
     }
+
+    /**
+     * The point on or inside this box nearest to {@code point}. When
+     * {@code point} is already inside, it is returned unchanged. The
+     * building block of reach (eye-to-hitbox) distance.
+     */
+    public Vec3 closestPoint(Vec3 point) {
+        return new Vec3(
+                clamp(point.x(), minX, maxX),
+                clamp(point.y(), minY, maxY),
+                clamp(point.z(), minZ, maxZ));
+    }
+
+    /** Squared distance from {@code point} to this box; 0 when inside. */
+    public double distanceSquaredTo(Vec3 point) {
+        return point.distanceSquared(closestPoint(point));
+    }
+
+    /** Distance from {@code point} to this box; 0 when inside. */
+    public double distanceTo(Vec3 point) {
+        return Math.sqrt(distanceSquaredTo(point));
+    }
+
+    private static double clamp(double value, double min, double max) {
+        return value < min ? min : Math.min(value, max);
+    }
 }

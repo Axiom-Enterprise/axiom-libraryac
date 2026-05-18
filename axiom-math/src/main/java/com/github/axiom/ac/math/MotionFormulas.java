@@ -27,7 +27,52 @@ public final class MotionFormulas {
     /** Extra jump velocity per Jump Boost amplifier level. */
     public static final double JUMP_BOOST_PER_LEVEL = 0.1;
 
+    /** Base per-tick walking movement speed (the player's speed attribute). */
+    public static final double WALK_SPEED = 0.1;
+
+    /** Multiplier applied to the movement speed while sprinting. */
+    public static final double SPRINT_MULTIPLIER = 1.3;
+
+    /**
+     * Constant scaling the ground move acceleration against the cube
+     * of the surface friction, matching Minecraft's {@code travel}.
+     */
+    public static final double GROUND_ACCELERATION_CONSTANT = 0.21600002;
+
+    /** Per-tick horizontal acceleration of input while airborne. */
+    public static final double AIR_ACCELERATION = 0.02;
+
     private MotionFormulas() {
+    }
+
+    /**
+     * Per-tick horizontal input acceleration for a player on the
+     * ground. Minecraft scales the move speed by the inverse cube of
+     * the surface friction, so a slippery block (high friction
+     * multiplier) yields a smaller per-tick acceleration but retains
+     * speed longer.
+     *
+     * @param friction effective horizontal friction (slipperiness
+     *                 times {@link #AIR_FRICTION}); must be positive
+     * @param sprint   whether the player is sprinting
+     */
+    public static double groundAcceleration(double friction, boolean sprint) {
+        if (friction <= 0.0) {
+            throw new IllegalArgumentException("friction must be positive");
+        }
+        double speed = WALK_SPEED * (sprint ? SPRINT_MULTIPLIER : 1.0);
+        return speed * GROUND_ACCELERATION_CONSTANT / (friction * friction * friction);
+    }
+
+    /**
+     * Per-tick horizontal input acceleration for a player in the air.
+     * Airborne acceleration is a small fixed value, independent of
+     * any surface.
+     *
+     * @param sprint whether the player is sprinting
+     */
+    public static double airAcceleration(boolean sprint) {
+        return AIR_ACCELERATION * (sprint ? SPRINT_MULTIPLIER : 1.0);
     }
 
     /** Vertical velocity after one tick of gravity and drag. */

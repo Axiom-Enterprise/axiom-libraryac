@@ -77,4 +77,27 @@ class CollisionEngineTest {
         Ray ray = new Ray(new Vec3(0.5, 0.5, 0.5), new Vec3(1, 0, 0));
         assertEquals(Optional.of(new BlockPos(3, 0, 0)), engine.raycast(ray, 20.0));
     }
+
+    @Test
+    void bottomSlabCollidesOnlyWithItsLowerHalf() {
+        world.setBlock(new BlockPos(0, 0, 0), BlockState.BOTTOM_SLAB);
+        // A box overlapping the lower half collides.
+        assertTrue(engine.collides(new Aabb(0.1, 0.1, 0.1, 0.9, 0.4, 0.9)));
+        // A box entirely in the upper half does not.
+        assertFalse(engine.collides(new Aabb(0.1, 0.6, 0.1, 0.9, 0.9, 0.9)));
+    }
+
+    @Test
+    void topSlabCollidesOnlyWithItsUpperHalf() {
+        world.setBlock(new BlockPos(0, 0, 0), BlockState.TOP_SLAB);
+        assertFalse(engine.collides(new Aabb(0.1, 0.1, 0.1, 0.9, 0.4, 0.9)));
+        assertTrue(engine.collides(new Aabb(0.1, 0.6, 0.1, 0.9, 0.9, 0.9)));
+    }
+
+    @Test
+    void collidesSpansBlocksAcrossACellBoundary() {
+        world.setBlock(new BlockPos(2, 0, 0), BlockState.SOLID);
+        // Box straddles cells x=1 and x=2; only x=2 is solid.
+        assertTrue(engine.collides(new Aabb(1.5, 0.1, 0.1, 2.5, 0.9, 0.9)));
+    }
 }

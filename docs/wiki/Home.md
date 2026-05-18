@@ -17,6 +17,7 @@ and an event bus — to build your own.
 | [Getting Started](Getting-Started.md) | Add Axiom to a project and get it running |
 | [Architecture](Architecture.md) | Understand the modules, dependencies, and threading model |
 | [Writing a Check](Writing-a-Check.md) | Implement detection logic and react to flags |
+| [Reach & Aim](Reach-and-Aim.md) | Build reach and aim checks with the combat & rotation utilities |
 | [API Reference](API-Reference.md) | Look up a specific type and its methods |
 | [For AI Agents](For-AI-Agents.md) | Get a compact, structured overview for tooling |
 

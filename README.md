@@ -23,10 +23,10 @@ You write the `Check`s. Axiom gives you the tools and the runtime.
 
 | Module          | What it gives you                                                            |
 |-----------------|------------------------------------------------------------------------------|
-| `axiom-math`    | Geometry (`Vec3`, `Aabb`, `Ray`), statistics, GCD, outliers, physics formulas |
-| `axiom-api`     | Public contracts: `Check`, `PlayerData`, `Violation`, the event bus, SPIs     |
-| `axiom-packet`  | PacketEvents pipeline, per-player data, transaction (latency) manager         |
-| `axiom-world`   | Block cache, `CollisionEngine` (AABB + voxel raycast), `PhysicsSimulator`     |
+| `axiom-math`    | Geometry, statistics, GCD, outliers, physics formulas, reach/aim (`Rotation`, `CombatMath`, `AimAnalysis`) |
+| `axiom-api`     | Public contracts: `Check`, `PlayerData` (with rotation history), `Violation`, the event bus, SPIs |
+| `axiom-packet`  | PacketEvents pipeline, per-player position & rotation data, transaction (latency) manager |
+| `axiom-world`   | Block cache with shaped blocks, `CollisionEngine` (AABB + voxel raycast), `PhysicsSimulator` |
 | `axiom-core`    | Runtime wiring, check registry with fault isolation, storage providers        |
 | `axiom-plugin`  | The thin Paper plugin that bootstraps everything                              |
 | `axiom-predict` | Deterministic movement-prediction engine (the offset cheat signal)            |
@@ -65,7 +65,7 @@ runtime.eventBus().channel(FlagEvent.class).subscribe(event ->
 
 ```bash
 ./gradlew build        # build and test every module
-./gradlew test         # run the full test suite (166 tests)
+./gradlew test         # run the full test suite (226 tests)
 ```
 
 On Windows use `.\gradlew.bat`.
@@ -82,6 +82,7 @@ Full usage docs live in [`docs/wiki/`](docs/wiki/Home.md):
 - [Getting Started](docs/wiki/Getting-Started.md) — depend on Axiom, run it
 - [Architecture](docs/wiki/Architecture.md) — modules, dependencies, threading
 - [Writing a Check](docs/wiki/Writing-a-Check.md) — the core workflow
+- [Reach & Aim](docs/wiki/Reach-and-Aim.md) — combat geometry and rotation checks
 - [API Reference](docs/wiki/API-Reference.md) — the toolkit type by type
 - [For AI Agents](docs/wiki/For-AI-Agents.md) — a dense map for automated tools
 
@@ -91,10 +92,13 @@ plans in [`docs/superpowers/plans/`](docs/superpowers/plans).
 
 ## Status
 
-All seven modules of the design are implemented and tested (166 unit tests).
-The PacketEvents/Paper glue compiles against the real dependencies but should
-be exercised on a live server before production use. The `axiom-predict`
-physics constants are a documented baseline approximation — see
+All seven modules of the design are implemented and tested (226 unit tests).
+The `axiom-plugin` bootstrap now drives inspection per movement packet and
+persists violations to JSON; the PacketEvents/Paper glue compiles against the
+real dependencies but should be exercised on a live server before production
+use. The `axiom-predict` tick ordering matches Minecraft's `travel` (friction
+decay, then input acceleration, then collision); the movement constants are a
+documented 1.21 baseline approximation — see
 [the prediction docs](docs/wiki/API-Reference.md#axiom-predict).
 
 ## License

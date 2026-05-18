@@ -12,12 +12,17 @@ Package `com.github.axiom.ac.math`. Pure, dependency-free, deterministic.
 
 - **`Vec3(double x, double y, double z)`** — immutable 3D vector.
   `add`, `subtract`, `scale`, `dot`, `length`, `lengthSquared`, `distance`,
-  `distanceSquared`, `normalize`.
+  `distanceSquared`, `normalize`; constant `Vec3.ZERO`.
 - **`Aabb(minX, minY, minZ, maxX, maxY, maxZ)`** — axis-aligned box.
   `intersects(Aabb)` (strict — shared faces do not count), `contains(Vec3)`,
-  `expand(dx,dy,dz)`, `offset(dx,dy,dz)`.
+  `expand(dx,dy,dz)`, `offset(dx,dy,dz)`, `closestPoint(Vec3)`,
+  `distanceTo(Vec3)`, `distanceSquaredTo(Vec3)` (0 when the point is inside).
 - **`Ray(Vec3 origin, Vec3 direction)`** — `intersect(Aabb)` returns an
   `OptionalDouble` distance via the slab method.
+- **`Rotation(float yaw, float pitch)`** — an immutable look angle, in
+  degrees. `directionVector()` (unit look vector), `wrapDegrees(double)`,
+  `yawDelta(Rotation)` / `pitchDelta(Rotation)` (signed, yaw wrapped to the
+  shortest turn), `magnitudeDelta(Rotation)`, `angleTo(Rotation)`.
 
 ### Statistics
 
@@ -41,8 +46,27 @@ Package `com.github.axiom.ac.math`. Pure, dependency-free, deterministic.
 
 - **`MotionFormulas`** — pure Minecraft 1.21 movement formulas:
   `nextVerticalVelocity`, `horizontalFriction`, `nextHorizontalVelocity`,
-  `jumpVelocity(int boostLevel)`, plus constants (`GRAVITY`, `VERTICAL_DRAG`,
-  `AIR_FRICTION`, `DEFAULT_SLIPPERINESS`, `BASE_JUMP_VELOCITY`).
+  `jumpVelocity(int boostLevel)`, `groundAcceleration(friction, sprint)`
+  (input acceleration scaled by the inverse cube of the surface friction),
+  `airAcceleration(sprint)`, plus constants (`GRAVITY`, `VERTICAL_DRAG`,
+  `AIR_FRICTION`, `DEFAULT_SLIPPERINESS`, `BASE_JUMP_VELOCITY`, `WALK_SPEED`,
+  `SPRINT_MULTIPLIER`, `GROUND_ACCELERATION_CONSTANT`, `AIR_ACCELERATION`).
+
+### Reach & aim
+
+- **`CombatMath`** — combat geometry. `eyePosition(feet[, eyeHeight])`,
+  `playerHitbox(feet)` / `hitbox(feet, width, height)`,
+  `reachDistance(eye, targetHitbox)` (eye to nearest hitbox point),
+  `withinReach(eye, target, maxReach)`,
+  `lineOfSightDistance(eye, Rotation, target)` (crosshair-ray hit distance,
+  `OptionalDouble`), `looksAt(eye, Rotation, target, maxDistance)`. Constants
+  `DEFAULT_EYE_HEIGHT`, `SNEAKING_EYE_HEIGHT`, `PLAYER_WIDTH`, `PLAYER_HEIGHT`.
+- **`AimAnalysis`** — rotation-pattern analysis over a `List<Rotation>`
+  (oldest first): `yawDeltas`, `pitchDeltas`, `angularChanges`,
+  `maxAngularChange`, `hasSnap(samples, snapDegrees)`,
+  `quantizationGcd(double[] deltas, double scale)` — the discrete mouse step
+  underlying the samples; a divisor that collapses toward the rounding unit
+  signals fractional, non-quantised corrections. Pair with `Stats` / `Outliers`.
 
 ---
 
@@ -54,7 +78,9 @@ Package `com.github.axiom.ac.api`. The contracts you compile against.
   — a detection result. `confidence` is validated to `[0, 1]`.
 - **`Check`** — SPI: `String id()`, `Optional<Violation> inspect(PlayerData)`.
 - **`PlayerData`** — read-only player view: `uuid`, `position`, `velocity`,
-  `yaw`, `pitch`, `onGround`.
+  `yaw`, `pitch`, `onGround`, plus `rotation()`, `previousRotation()` and
+  `rotationHistory()` (default methods; the packet-pipeline implementation
+  overrides them with a genuine bounded history).
 - **`StorageProvider`** — SPI: `saveViolation(UUID, Violation)`,
   `loadViolations(UUID)`.
 - **`EventBus`** — `channel(Class<T>)` returns the `EventChannel<T>`;
@@ -81,13 +107,19 @@ Package `com.github.axiom.ac.packet`.
 - **`MovementUpdate`** — one decoded movement packet. Factories: `full`,
   `positionOnly`, `rotationOnly`, `groundOnly`.
 - **`PlayerDataImpl`** — concrete mutable `PlayerData`; `applyMovement`,
-  `previousPosition`, `positionHistory`. Thread-confined.
+  `previousPosition`, `positionHistory`, plus rotation tracking:
+  `rotationHistory()`, `rotationBuffer()`, `previousRotation()`,
+  `lastYawDelta()`, `lastPitchDelta()`. Thread-confined.
 - **`PlayerRegistry`** — `register`, `unregister`, `get`, `all`, `size`.
 - **`TransactionManager(TransactionSink)`** — latency compensation:
   `sendTransaction(now)`, `confirm(id, now)` (returns round-trip),
-  `isPending`, `pendingCount`, `lastRoundTrip`.
+  `isPending`, `pendingCount`, `lastRoundTrip`, plus `smoothedRoundTrip()`
+  (spike-resistant EWMA latency) and `jitter()` (EWMA of sample deviation).
 - **`TransactionSink`** — SPI for actually sending a transaction packet.
 - **`PacketPipeline`** — the PacketEvents `PacketListenerAbstract` glue.
+  The `PacketPipeline(PlayerRegistry, Consumer<UUID>)` constructor takes a
+  movement listener invoked after each tracked player's data is updated; the
+  runtime wires it to its inspection pass.
 
 ---
 
@@ -97,17 +129,28 @@ Package `com.github.axiom.ac.world`. Pure, dependency-free.
 
 - **`BlockPos(int x, int y, int z)`** — block coordinate; `of(Vec3)` floors a
   position.
-- **`BlockState`** — `SOLID`, `PASSABLE`, `UNKNOWN` (uncached / desynced).
-- **`WorldCache`** — `setBlock(BlockPos, BlockState)`, `blockAt`, `isSolid`,
-  `clear`, `size`. **You must populate it** from block updates for collision to
-  be meaningful.
-- **`CollisionEngine(WorldCache)`** — `collides(Aabb)` (any solid block
-  overlapped?), `raycast(Ray, maxDistance)` (Amanatides–Woo voxel traversal,
-  returns the first solid `BlockPos`).
-- **`PhysicsSimulator(CollisionEngine)`** — `simulate(Aabb box, Vec3 velocity,
-  boolean onGround)` returns a `Result(Aabb box, Vec3 velocity, boolean
-  onGround)`: applies gravity + friction, then resolves collisions axis by
-  axis. Every solid block is treated as a full unit cube.
+- **`BlockState`** — a block's collision shape and surface friction. The
+  collision shape is a list of cell-local boxes (components in `[0, 1]`).
+  Constants: `SOLID`, `PASSABLE`, `UNKNOWN` (uncached / desynced),
+  `ICE` / `PACKED_ICE` / `BLUE_ICE`, `SLIME_BLOCK`, `BOTTOM_SLAB` / `TOP_SLAB`.
+  Factories `cube(name, slipperiness)` and `shape(name, slipperiness, Aabb...)`.
+  Queries `collisionBoxes()`, `slipperiness()`, `hasCollision()`,
+  `isPassable()`, `isUnknown()`.
+- **`WorldCache`** — `setBlock(BlockPos, BlockState)`, `blockAt`, `isSolid`
+  (now "collidable"), `clear`, `size`. **You must populate it** from block
+  updates for collision to be meaningful.
+- **`CollisionEngine(WorldCache)`** — `collides(Aabb)` (does the box overlap
+  any block's collision shape?), `raycast(Ray, maxDistance)` (Amanatides–Woo
+  voxel traversal, returns the first collidable `BlockPos`), `world()`.
+- **`PhysicsSimulator(CollisionEngine)`** — `simulate(...)` returns a
+  `Result(Aabb box, Vec3 velocity, boolean onGround)`. One tick, in
+  Minecraft's order: friction decay (ground friction is `slipperiness * 0.91`,
+  air friction is the bare `0.91`), then the caller's input acceleration, then
+  axis-by-axis collision resolution. Overloads: `simulate(box, velocity,
+  onGround)`, `simulate(box, velocity, inputAcceleration, onGround)` (both read
+  the surface slipperiness from the block below), and `simulate(box, velocity,
+  inputAcceleration, onGround, slipperiness)`. `collision()` exposes the
+  engine. Shaped blocks (slabs) collide with only their occupied sub-cell.
 
 ---
 
@@ -145,11 +188,14 @@ Package `com.github.axiom.ac.predict`. The movement-prediction engine.
   match. The `offset` is the cheat signal: near zero for legitimate play,
   large when no legitimate input explains the move.
 
-> **Accuracy note.** The `PredictionEngine` movement constants are a documented
-> *baseline approximation* — Minecraft's `moveRelative` direction math with
-> plausible constants, not yet tuned to a specific game version. The engine and
-> search are exact; treat the offset as a relative signal until the constants
-> are calibrated. This is acknowledged future work.
+> **Accuracy note.** The `PredictionEngine` tick ordering matches Minecraft's
+> `travel`: friction decay (ground vs air, surface slipperiness read from the
+> block beneath the player), then `moveRelative` input acceleration (scaled by
+> the inverse cube of the surface friction on the ground, a fixed value in the
+> air), then axis-by-axis collision. The ordering and search are exact; the
+> movement constants are a documented 1.21 *baseline approximation*, not yet
+> calibrated bit-for-bit to a specific game version — treat the offset as a
+> relative signal. Final constant calibration is acknowledged future work.
 
 ---
 

@@ -2,6 +2,7 @@ package com.github.axiom.ac.math;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -40,5 +41,38 @@ class MotionFormulasTest {
     @Test
     void negativeJumpBoostThrows() {
         assertThrows(IllegalArgumentException.class, () -> MotionFormulas.jumpVelocity(-1));
+    }
+
+    @Test
+    void groundAccelerationScalesByInverseCubeOfFriction() {
+        // Default surface friction 0.546: 0.1 * 0.21600002 / 0.546^3.
+        double expected = 0.1 * 0.21600002 / (0.546 * 0.546 * 0.546);
+        assertEquals(expected, MotionFormulas.groundAcceleration(0.546, false), EPS);
+    }
+
+    @Test
+    void sprintingRaisesGroundAcceleration() {
+        double walk = MotionFormulas.groundAcceleration(0.546, false);
+        double sprint = MotionFormulas.groundAcceleration(0.546, true);
+        assertEquals(walk * 1.3, sprint, EPS);
+    }
+
+    @Test
+    void slipperierSurfaceLowersGroundAcceleration() {
+        double normal = MotionFormulas.groundAcceleration(0.546, false);
+        double ice = MotionFormulas.groundAcceleration(0.8918, false);
+        assertTrue(ice < normal);
+    }
+
+    @Test
+    void nonPositiveFrictionThrows() {
+        assertThrows(IllegalArgumentException.class,
+                () -> MotionFormulas.groundAcceleration(0.0, false));
+    }
+
+    @Test
+    void airAccelerationIsTheFixedAirValue() {
+        assertEquals(0.02, MotionFormulas.airAcceleration(false), EPS);
+        assertEquals(0.026, MotionFormulas.airAcceleration(true), EPS);
     }
 }

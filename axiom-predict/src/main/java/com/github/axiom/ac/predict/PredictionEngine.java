@@ -3,20 +3,29 @@ package com.github.axiom.ac.predict;
 import com.github.axiom.ac.math.Aabb;
 import com.github.axiom.ac.math.MotionFormulas;
 import com.github.axiom.ac.math.Vec3;
+import com.github.axiom.ac.world.BlockPos;
+import com.github.axiom.ac.world.BlockState;
 import com.github.axiom.ac.world.PhysicsSimulator;
+import com.github.axiom.ac.world.WorldCache;
 import java.util.Objects;
 
 /**
  * Predicts the next {@link PlayerState} for a candidate
- * {@link MovementInput}. Input axes become a world-space acceleration
- * via Minecraft's {@code moveRelative} direction math; the result is
- * added to the velocity, a jump impulse is applied when jumping from
- * the ground, and the collision-aware tick is delegated to
+ * {@link MovementInput}. Input axes become a world-space horizontal
+ * acceleration via Minecraft's {@code moveRelative} direction math;
+ * a jump from the ground replaces the vertical velocity with the
+ * jump impulse; and the collision-aware tick is delegated to
  * {@link PhysicsSimulator}.
  *
- * <p>The movement constants are a baseline approximation — see the
- * plan's "Physics-accuracy scope" note. The engine is exact; the
- * constants are not yet tuned to a specific Minecraft version.
+ * <p>The input acceleration follows Minecraft's {@code travel} model:
+ * on the ground it scales with the inverse cube of the surface
+ * friction (so movement on ice accelerates slowly but coasts far);
+ * in the air it is a small fixed value. Surface slipperiness is read
+ * from the block beneath the player.
+ *
+ * <p>The movement constants are the documented 1.21 baseline. The
+ * engine's tick ordering is exact; the constants are a close
+ * approximation rather than a per-version-tuned table.
  */
 public final class PredictionEngine {
 
@@ -26,13 +35,8 @@ public final class PredictionEngine {
     /** Height of the standard player bounding box. */
     public static final double PLAYER_HEIGHT = 1.8;
 
-    /** Baseline per-tick horizontal acceleration for walking. */
-    public static final double BASE_MOVE_SPEED = 0.1;
-
-    /** Multiplier applied to the move speed while sprinting. */
-    public static final double SPRINT_MULTIPLIER = 1.3;
-
     private static final double INPUT_EPSILON = 1.0e-4;
+    private static final double GROUND_PROBE_EPSILON = 1.0e-3;
 
     private final PhysicsSimulator simulator;
 
@@ -45,21 +49,25 @@ public final class PredictionEngine {
      * the client pressed {@code input}.
      */
     public PlayerState predict(PlayerState previous, MovementInput input) {
-        Vec3 acceleration = inputAcceleration(previous.yaw(), input);
+        Objects.requireNonNull(previous, "previous");
+        Objects.requireNonNull(input, "input");
+
+        boolean onGround = previous.onGround();
+        double slipperiness = slipperinessBelow(previous);
+        double frictionXz = onGround
+                ? MotionFormulas.horizontalFriction(slipperiness)
+                : MotionFormulas.AIR_FRICTION;
+
+        Vec3 acceleration = inputAcceleration(previous.yaw(), input, onGround, frictionXz);
 
         Vec3 velocity = previous.velocity();
-        double velocityY = velocity.y();
-        if (input.jump() && previous.onGround()) {
-            velocityY = MotionFormulas.jumpVelocity(0);
+        if (input.jump() && onGround) {
+            velocity = new Vec3(velocity.x(), MotionFormulas.jumpVelocity(0), velocity.z());
         }
-        Vec3 inputVelocity = new Vec3(
-                velocity.x() + acceleration.x(),
-                velocityY,
-                velocity.z() + acceleration.z());
 
         Aabb box = boxAt(previous.position());
         PhysicsSimulator.Result result =
-                simulator.simulate(box, inputVelocity, previous.onGround());
+                simulator.simulate(box, velocity, acceleration, onGround, slipperiness);
         return new PlayerState(feetOf(result.box()), result.velocity(),
                 previous.yaw(), result.onGround());
     }
@@ -67,18 +75,22 @@ public final class PredictionEngine {
     /**
      * World-space horizontal acceleration produced by {@code input}
      * for a player looking along {@code yaw}. Uses Minecraft's
-     * {@code moveRelative}: the input vector is normalised, scaled by
-     * the move speed, and rotated by the yaw.
+     * {@code moveRelative}: the input vector is normalised against its
+     * own magnitude (only when that exceeds one), scaled by the
+     * per-tick move acceleration, and rotated by the yaw.
      */
-    private static Vec3 inputAcceleration(float yaw, MovementInput input) {
+    private static Vec3 inputAcceleration(float yaw, MovementInput input,
+                                          boolean onGround, double frictionXz) {
         double strafe = input.strafe();
         double forward = input.forward();
         double magnitude = Math.sqrt(strafe * strafe + forward * forward);
         if (magnitude < INPUT_EPSILON) {
-            return new Vec3(0, 0, 0);
+            return Vec3.ZERO;
         }
-        double speed = BASE_MOVE_SPEED * (input.sprint() ? SPRINT_MULTIPLIER : 1.0);
-        double scale = speed / Math.max(magnitude, 1.0);
+        double acceleration = onGround
+                ? MotionFormulas.groundAcceleration(frictionXz, input.sprint())
+                : MotionFormulas.airAcceleration(input.sprint());
+        double scale = acceleration / Math.max(magnitude, 1.0);
         strafe *= scale;
         forward *= scale;
 
@@ -88,6 +100,25 @@ public final class PredictionEngine {
         double accelX = strafe * cos - forward * sin;
         double accelZ = forward * cos + strafe * sin;
         return new Vec3(accelX, 0.0, accelZ);
+    }
+
+    /**
+     * Slipperiness of the block beneath the player's feet, or the
+     * default when the player is airborne or that block is uncached.
+     */
+    private double slipperinessBelow(PlayerState state) {
+        if (!state.onGround()) {
+            return MotionFormulas.DEFAULT_SLIPPERINESS;
+        }
+        Vec3 feet = state.position();
+        BlockPos below = new BlockPos(
+                (int) Math.floor(feet.x()),
+                (int) Math.floor(feet.y() - GROUND_PROBE_EPSILON),
+                (int) Math.floor(feet.z()));
+        BlockState block = simulator.collision().world().blockAt(below);
+        return block.hasCollision()
+                ? block.slipperiness()
+                : MotionFormulas.DEFAULT_SLIPPERINESS;
     }
 
     /** The standard player bounding box around a feet position. */
