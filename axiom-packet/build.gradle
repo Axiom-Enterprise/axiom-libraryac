@@ -1,0 +1,13 @@
+// axiom-packet: PacketEvents-backed packet pipeline. The testable
+// core (MovementUpdate, PlayerDataImpl, PlayerRegistry,
+// TransactionManager) is PacketEvents-free; only PacketPipeline uses
+// PacketEvents, which the server provides at runtime (compileOnly).
+repositories {
+    maven { url = 'https://repo.codemc.io/repository/maven-releases/' }
+}
+
+dependencies {
+    implementation project(':axiom-api')
+    implementation project(':axiom-math')
+    compileOnly 'com.github.retrooper:packetevents-spigot:2.12.1'
+}
