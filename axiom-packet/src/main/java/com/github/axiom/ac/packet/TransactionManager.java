@@ -1,6 +1,6 @@
 package com.github.axiom.ac.packet;
 
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalLong;
@@ -17,7 +17,7 @@ import java.util.OptionalLong;
 public final class TransactionManager {
 
     private final TransactionSink sink;
-    private final Map<Integer, Long> pending = new LinkedHashMap<>();
+    private final Map<Integer, Long> pending = new HashMap<>();
 
     private int nextId = 1;
     private long lastRoundTripMillis = -1L;

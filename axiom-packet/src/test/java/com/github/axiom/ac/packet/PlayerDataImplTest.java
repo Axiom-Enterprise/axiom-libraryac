@@ -37,6 +37,17 @@ class PlayerDataImplTest {
     }
 
     @Test
+    void positionLessPacketResetsVelocity() {
+        PlayerDataImpl data = new PlayerDataImpl(UUID.randomUUID());
+        data.applyMovement(MovementUpdate.positionOnly(new Vec3(0, 64, 0), true));
+        data.applyMovement(MovementUpdate.positionOnly(new Vec3(0.5, 64, 0), true));
+        data.applyMovement(MovementUpdate.rotationOnly(45.0f, 0.0f, true));
+
+        assertEquals(new Vec3(0, 0, 0), data.velocity());
+        assertEquals(new Vec3(0.5, 64, 0), data.position());
+    }
+
+    @Test
     void rotationUpdateDoesNotTouchPosition() {
         PlayerDataImpl data = new PlayerDataImpl(UUID.randomUUID());
         data.applyMovement(MovementUpdate.positionOnly(new Vec3(1, 64, 1), true));

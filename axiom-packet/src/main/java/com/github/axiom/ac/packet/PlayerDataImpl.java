@@ -33,8 +33,14 @@ public final class PlayerDataImpl implements PlayerData {
     /**
      * Advances state from one decoded movement packet. A position
      * update shifts current to previous, recomputes velocity as the
-     * delta, and appends to the position history. A rotation update
-     * sets the look angle. The ground flag is always applied.
+     * delta, and appends to the position history. A movement packet
+     * that carries no position means the player did not move that
+     * tick, so velocity is reset to zero. A rotation update sets the
+     * look angle. The ground flag is always applied.
+     *
+     * <p>The velocity after the very first position update is the
+     * delta from the origin and is not meaningful — checks should
+     * discard the first sample.
      */
     public void applyMovement(MovementUpdate update) {
         if (update.hasPosition()) {
@@ -42,6 +48,8 @@ public final class PlayerDataImpl implements PlayerData {
             position = update.position();
             velocity = position.subtract(previousPosition);
             positionHistory.add(position);
+        } else {
+            velocity = ORIGIN;
         }
         if (update.hasRotation()) {
             yaw = update.yaw();
