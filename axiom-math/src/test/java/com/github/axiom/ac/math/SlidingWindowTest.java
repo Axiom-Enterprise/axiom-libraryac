@@ -15,6 +15,7 @@ class SlidingWindowTest {
         SlidingWindow window = new SlidingWindow(3);
         window.add(1);
         window.add(2);
+        assertEquals(3, window.capacity());
         assertEquals(2, window.size());
         assertArrayEquals(new double[] {1, 2}, window.toArray(), EPS);
     }

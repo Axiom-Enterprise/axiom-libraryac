@@ -27,6 +27,7 @@ class Vec3Test {
         assertEquals(5.0, new Vec3(3, 4, 0).length(), EPS);
         assertEquals(25.0, new Vec3(3, 4, 0).lengthSquared(), EPS);
         assertEquals(5.0, new Vec3(0, 0, 0).distance(new Vec3(3, 4, 0)), EPS);
+        assertEquals(25.0, new Vec3(0, 0, 0).distanceSquared(new Vec3(3, 4, 0)), EPS);
     }
 
     @Test
