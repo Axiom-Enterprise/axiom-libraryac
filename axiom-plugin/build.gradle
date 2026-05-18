@@ -1,0 +1,14 @@
+// axiom-plugin: the thin Paper plugin that bootstraps axiom-core.
+// Pure glue — Paper API and PacketEvents are compileOnly (provided
+// by the server at runtime).
+repositories {
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+    maven { url = 'https://repo.codemc.io/repository/maven-releases/' }
+}
+
+dependencies {
+    implementation project(':axiom-core')
+    implementation project(':axiom-packet')
+    compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+    compileOnly 'com.github.retrooper:packetevents-spigot:2.12.1'
+}
