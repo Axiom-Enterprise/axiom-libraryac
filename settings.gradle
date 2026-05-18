@@ -1,3 +1,4 @@
 rootProject.name = 'axiom-libraryac'
 
 include 'axiom-math'
+include 'axiom-api'
