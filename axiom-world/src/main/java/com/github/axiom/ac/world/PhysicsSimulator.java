@@ -13,6 +13,9 @@ import java.util.Objects;
  * velocity decays under ground friction. The resulting motion is
  * then resolved axis by axis (Y, X, Z): a component that would push
  * the player's bounding box into a solid block is cancelled.
+ *
+ * <p>Horizontal friction currently assumes an ordinary (non-ice)
+ * block; ice and slime surfaces are not yet modelled.
  */
 public final class PhysicsSimulator {
 
@@ -43,29 +46,22 @@ public final class PhysicsSimulator {
         double wantY = MotionFormulas.nextVerticalVelocity(velocity.y());
         double wantZ = MotionFormulas.nextHorizontalVelocity(velocity.z(), friction);
 
-        double resolvedY = resolveAxis(box, 0.0, wantY, 0.0);
+        // Resolve axis by axis: a component that would drive the
+        // bounding box into a solid block is cancelled.
+        double resolvedY = collision.collides(box.offset(0.0, wantY, 0.0)) ? 0.0 : wantY;
         Aabb afterY = box.offset(0.0, resolvedY, 0.0);
 
-        double resolvedX = resolveAxis(afterY, wantX, 0.0, 0.0);
+        double resolvedX = collision.collides(afterY.offset(wantX, 0.0, 0.0)) ? 0.0 : wantX;
         Aabb afterX = afterY.offset(resolvedX, 0.0, 0.0);
 
-        double resolvedZ = resolveAxis(afterX, 0.0, 0.0, wantZ);
+        double resolvedZ = collision.collides(afterX.offset(0.0, 0.0, wantZ)) ? 0.0 : wantZ;
         Aabb afterZ = afterX.offset(0.0, 0.0, resolvedZ);
 
-        boolean supported = wantY <= 0.0 && resolvedY == 0.0;
+        // A descending player whose downward motion was cancelled is
+        // supported from below. Gravity guarantees wantY < 0 for any
+        // player that is not actively rising.
+        boolean supported = wantY < 0.0 && resolvedY == 0.0;
         Vec3 resolvedVelocity = new Vec3(resolvedX, resolvedY, resolvedZ);
         return new Result(afterZ, resolvedVelocity, supported);
-    }
-
-    /**
-     * Returns the requested single-axis movement, or 0 when applying
-     * it would drive {@code box} into a solid block.
-     */
-    private double resolveAxis(Aabb box, double dx, double dy, double dz) {
-        double requested = dx + dy + dz;
-        if (requested == 0.0) {
-            return 0.0;
-        }
-        return collision.collides(box.offset(dx, dy, dz)) ? 0.0 : requested;
     }
 }

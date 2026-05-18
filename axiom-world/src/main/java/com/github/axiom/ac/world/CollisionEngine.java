@@ -44,8 +44,10 @@ public final class CollisionEngine {
 
     /**
      * Traverses {@code ray} through the voxel grid and returns the
-     * first solid block within {@code maxDistance} world units, or
-     * empty when none is hit. Uses Amanatides–Woo voxel traversal.
+     * first solid block whose entry point lies within
+     * {@code maxDistance} world units of the ray origin, or empty
+     * when none is hit. The voxel containing the origin counts as
+     * entered at distance 0. Uses Amanatides–Woo voxel traversal.
      */
     public Optional<BlockPos> raycast(Ray ray, double maxDistance) {
         Vec3 direction = ray.direction();
@@ -60,6 +62,11 @@ public final class CollisionEngine {
         int y = (int) Math.floor(origin.y());
         int z = (int) Math.floor(origin.z());
 
+        BlockPos originVoxel = new BlockPos(x, y, z);
+        if (world.isSolid(originVoxel)) {
+            return Optional.of(originVoxel);
+        }
+
         int stepX = signum(dir.x());
         int stepY = signum(dir.y());
         int stepZ = signum(dir.z());
@@ -72,11 +79,8 @@ public final class CollisionEngine {
         double tDeltaY = dir.y() == 0.0 ? Double.POSITIVE_INFINITY : Math.abs(1.0 / dir.y());
         double tDeltaZ = dir.z() == 0.0 ? Double.POSITIVE_INFINITY : Math.abs(1.0 / dir.z());
 
-        double travelled = 0.0;
-        while (travelled <= maxDistance) {
-            if (world.isSolid(new BlockPos(x, y, z))) {
-                return Optional.of(new BlockPos(x, y, z));
-            }
+        while (true) {
+            double travelled;
             if (tMaxX <= tMaxY && tMaxX <= tMaxZ) {
                 travelled = tMaxX;
                 tMaxX += tDeltaX;
@@ -90,8 +94,14 @@ public final class CollisionEngine {
                 tMaxZ += tDeltaZ;
                 z += stepZ;
             }
+            if (travelled > maxDistance) {
+                return Optional.empty();
+            }
+            BlockPos voxel = new BlockPos(x, y, z);
+            if (world.isSolid(voxel)) {
+                return Optional.of(voxel);
+            }
         }
-        return Optional.empty();
     }
 
     private static int signum(double value) {

@@ -62,6 +62,15 @@ class CollisionEngineTest {
     }
 
     @Test
+    void raycastBoundaryIncludesBlockEnteredExactlyAtMaxDistance() {
+        world.setBlock(new BlockPos(5, 0, 0), BlockState.SOLID);
+        Ray ray = new Ray(new Vec3(0.5, 0.5, 0.5), new Vec3(1, 0, 0));
+        // Block x=5 is entered at distance 4.5 from the origin.
+        assertEquals(Optional.of(new BlockPos(5, 0, 0)), engine.raycast(ray, 4.5));
+        assertTrue(engine.raycast(ray, 4.4).isEmpty());
+    }
+
+    @Test
     void raycastStopsAtFirstSolidBlock() {
         world.setBlock(new BlockPos(3, 0, 0), BlockState.SOLID);
         world.setBlock(new BlockPos(7, 0, 0), BlockState.SOLID);
