@@ -1,0 +1,44 @@
+package com.github.axiom.ac.math;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.junit.jupiter.api.Test;
+
+class MotionFormulasTest {
+
+    private static final double EPS = 1e-9;
+
+    @Test
+    void verticalVelocityDecaysWithGravityAndDrag() {
+        // From rest: (0 - 0.08) * 0.98 = -0.0784.
+        assertEquals(-0.0784, MotionFormulas.nextVerticalVelocity(0.0), EPS);
+    }
+
+    @Test
+    void horizontalFrictionCombinesSlipperinessAndAirFriction() {
+        // Default ground: 0.6 * 0.91 = 0.546.
+        assertEquals(0.546, MotionFormulas.horizontalFriction(0.6), EPS);
+    }
+
+    @Test
+    void horizontalVelocityScalesByFriction() {
+        assertEquals(0.546, MotionFormulas.nextHorizontalVelocity(1.0, 0.546), EPS);
+    }
+
+    @Test
+    void jumpVelocityWithoutBoost() {
+        assertEquals(0.42, MotionFormulas.jumpVelocity(0), EPS);
+    }
+
+    @Test
+    void jumpVelocityWithBoost() {
+        // Jump Boost II adds 2 * 0.1.
+        assertEquals(0.62, MotionFormulas.jumpVelocity(2), EPS);
+    }
+
+    @Test
+    void negativeJumpBoostThrows() {
+        assertThrows(IllegalArgumentException.class, () -> MotionFormulas.jumpVelocity(-1));
+    }
+}
