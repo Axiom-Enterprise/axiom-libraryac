@@ -23,6 +23,8 @@ public final class MovementPredictor {
      * {@code previous} to {@code actualPosition}.
      */
     public PredictionResult bestPrediction(PlayerState previous, Vec3 actualPosition) {
+        Objects.requireNonNull(previous, "previous");
+        Objects.requireNonNull(actualPosition, "actualPosition");
         PredictionResult best = null;
         for (MovementInput input : InputSpace.all()) {
             PlayerState predicted = engine.predict(previous, input);

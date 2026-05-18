@@ -26,6 +26,16 @@ class MovementPredictorTest {
     }
 
     @Test
+    void bestPredictionRejectsNullArguments() {
+        PlayerState state = new PlayerState(
+                new Vec3(0, 100, 0), new Vec3(0, 0, 0), 0.0f, true);
+        assertThrows(NullPointerException.class,
+                () -> predictor.bestPrediction(null, new Vec3(0, 0, 0)));
+        assertThrows(NullPointerException.class,
+                () -> predictor.bestPrediction(state, null));
+    }
+
+    @Test
     void aLegitimateMoveHasANearZeroOffset() {
         PlayerState start = new PlayerState(
                 new Vec3(0, 100, 0), new Vec3(0, 0, 0), 0.0f, true);
