@@ -73,6 +73,14 @@ if (window.isFull() && Outliers.zScore(sample, window.mean(),
 }
 ```
 
+A raw measurement rarely makes a good `confidence` directly. `Normalizer` maps
+it onto `[0, 1]`: `minMax(value, floor, ceiling)` for a linear band, or
+`softScore(value, midpoint, steepness)` for a graded logistic confidence.
+
+```java
+double confidence = Normalizer.softScore(horizontal, MAX_HORIZONTAL, 8.0);
+```
+
 See [API Reference → axiom-math](API-Reference.md#axiom-math) for everything
 available.
 

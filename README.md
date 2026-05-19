@@ -65,7 +65,7 @@ runtime.eventBus().channel(FlagEvent.class).subscribe(event ->
 
 ```bash
 ./gradlew build        # build and test every module
-./gradlew test         # run the full test suite (253 tests)
+./gradlew test         # run the full test suite (312 tests)
 ```
 
 On Windows use `.\gradlew.bat`.
@@ -83,6 +83,7 @@ Full usage docs live in [`docs/wiki/`](docs/wiki/Home.md):
 - [Architecture](docs/wiki/Architecture.md) — modules, dependencies, threading
 - [Writing a Check](docs/wiki/Writing-a-Check.md) — the core workflow
 - [Reach & Aim](docs/wiki/Reach-and-Aim.md) — combat geometry and rotation checks
+- [Movement Prediction](docs/wiki/Movement-Prediction.md) — flag impossible movement
 - [API Reference](docs/wiki/API-Reference.md) — the toolkit type by type
 - [For AI Agents](docs/wiki/For-AI-Agents.md) — a dense map for automated tools
 
@@ -92,15 +93,16 @@ plans in [`docs/superpowers/plans/`](docs/superpowers/plans).
 
 ## Status
 
-All seven modules of the design are implemented and tested (253 unit tests).
+All seven modules of the design are implemented and tested (312 unit tests).
 The `axiom-plugin` bootstrap drives inspection per movement packet and persists
 violations to JSON; the PacketEvents/Paper glue compiles against the real
 dependencies but should be exercised on a live server before production use.
 The `axiom-predict` engine reproduces Minecraft's branched movement model —
-walking, water, lava, climbing, and elytra, with potion effects, sprint-jump,
-slime bounce, and cobweb — with exact tick ordering and a documented 1.21
-baseline constant set. See
-[the prediction docs](docs/wiki/API-Reference.md#axiom-predict).
+walking, water, lava, powder snow, climbing, and elytra, with potion effects,
+sprint-jump, slime bounce, cobweb, firework boost, Riptide, bubble columns,
+Depth Strider, and Dolphin's Grace — with exact tick ordering and a documented
+1.21+ baseline constant set. See
+[the prediction docs](docs/wiki/Movement-Prediction.md).
 
 ## License
 

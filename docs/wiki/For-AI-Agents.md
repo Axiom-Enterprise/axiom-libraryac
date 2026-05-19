@@ -21,7 +21,7 @@ physics, prediction, event bus) for building one.
 | Package root | `com.github.axiom.ac` |
 | Modules | `axiom-math`, `axiom-api`, `axiom-packet`, `axiom-world`, `axiom-core`, `axiom-plugin`, `axiom-predict` |
 | External deps | PacketEvents 2.12.1 (`compileOnly`), Paper API 1.21.x (`compileOnly`), Gson 2.11.0 |
-| Tests | 253 unit tests (JUnit 6), all passing |
+| Tests | 312 unit tests (JUnit 6), all passing |
 | Published artifacts | none — build from source |
 
 ## Build / test commands
@@ -38,25 +38,28 @@ Windows: use `.\gradlew.bat`. The shell in this environment is PowerShell.
 ## Module map (one line each)
 
 - `axiom-math` — `Vec3`, `Aabb`, `Ray`, `Rotation`, `Stats`, `Distribution`,
-  `Gcd`, `Outliers`, `RollingBuffer`, `SlidingWindow`, `MotionFormulas`,
-  `CombatMath`, `AimAnalysis`. No deps.
+  `Gcd`, `Outliers`, `RollingBuffer`, `SlidingWindow`, `Normalizer`,
+  `MotionFormulas`, `CombatMath`, `AimAnalysis`. No deps.
 - `axiom-api` — `Check`, `PlayerData` (with rotation history), `Violation`,
   `StorageProvider`, `EventBus`, `EventChannel`, `Subscription`, `Cancellable`;
   events `FlagEvent`, `CheckFaultEvent`, `PlayerJoinEvent`, `PlayerQuitEvent`.
-- `axiom-packet` — `MovementUpdate`, `PlayerDataImpl` (position + rotation
-  history), `PlayerRegistry`, `TransactionManager` (RTT smoothing + jitter),
-  `TransactionSink`, `PacketPipeline` (optional movement listener).
+- `axiom-packet` — `MovementUpdate`, `MovementUpdateNormalizer`,
+  `PlayerDataImpl` (position + rotation history), `PlayerRegistry`,
+  `TransactionManager` (RTT smoothing + jitter), `TransactionSink`,
+  `PacketPipeline` (optional movement listener).
 - `axiom-world` — `BlockPos`, `BlockState` (collision shape, slipperiness,
-  fluid/climbable/bouncy/cobweb traits), `Fluid`, `WorldCache`,
-  `CollisionEngine`, `PhysicsSimulator` (collision mover + walking physics).
-  No deps.
+  fluid/climbable/bouncy/cobweb/scaffolding/powder-snow/bubble-column traits),
+  `Fluid`, `BubbleColumn`, `WorldCache`, `CollisionEngine`, `PhysicsSimulator`
+  (collision mover + walking physics; a `record`), and the normalizers
+  `AabbNormalizer`, `ShapeNormalizer`, `VoxelNormalizer`. No deps.
 - `axiom-core` — `MemoryStorageProvider`, `JsonStorageProvider`,
   `CheckRegistry`, `AxiomRuntime`, `AxiomProvider`.
 - `axiom-plugin` — `AxiomPlugin` (Paper `JavaPlugin`), `plugin.yml`.
 - `axiom-predict` — `MovementInput` (forward/strafe/jump/sprint/sneak),
-  `MovementContext` (effects + elytra), `InputSpace` (72 inputs), `PlayerState`,
-  `PredictionEngine` (branched: walk/water/lava/climb/elytra), `PredictionResult`,
-  `MovementPredictor`. Deps: `axiom-math`, `axiom-world`.
+  `MovementContext` (effects + elytra/firework/Riptide/Depth Strider/Dolphin's
+  Grace), `InputSpace` (72 inputs), `PlayerState`, `PredictionEngine` (branched:
+  walk/water/lava/powder-snow/climb/elytra), `PredictionResult`,
+  `MovementPredictor`, `OffsetNormalizer`. Deps: `axiom-math`, `axiom-world`.
 
 ## Dependency order (compile leaves first)
 
@@ -101,11 +104,17 @@ Reach/aim checks: build on `CombatMath` (eye, hitbox, reach, line of sight) and
 
 ## Known limitations / future work
 
-- `axiom-predict` movement constants are a 1.21 baseline approximation, not
-  calibrated bit-for-bit — the offset is a relative signal. Branch selection,
-  tick ordering, and the input search are exact.
-- `axiom-world` models full cubes and slabs (`BlockState.shape`); shapes that
-  exceed a unit cell (fences, walls) are clipped to the cell.
+- `axiom-predict` movement constants are a 1.21+ baseline approximation, not
+  calibrated bit-for-bit — the offset is a relative signal; `OffsetNormalizer`
+  turns it into a graded `[0, 1]` score. Branch selection (now including
+  firework boost, Riptide, bubble columns, powder snow), tick ordering, and the
+  input search are exact.
+- `axiom-world` models arbitrary cell-local collision shapes
+  (`BlockState.shape`, canonicalised by `ShapeNormalizer`); shapes that exceed
+  a unit cell (fences, walls) are clipped to the cell.
+- `axiom-predict` elytra/firework/Riptide state is carried in `MovementContext`
+  (set from server-side knowledge); `InputSpace` enumerates ground/air inputs
+  only, not flight state.
 - `CollisionEngine.raycast` is voxel-granular — it ignores partial collision
   shapes and stops at the first collidable cell.
 - PacketEvents/Paper glue (`PacketPipeline`, `AxiomPlugin`) compiles against the
