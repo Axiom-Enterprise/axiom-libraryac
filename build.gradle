@@ -5,15 +5,34 @@ allprojects {
 
 subprojects {
     apply plugin: 'java'
+    apply plugin: 'maven-publish'
 
     java {
         toolchain {
             languageVersion = JavaLanguageVersion.of(21)
         }
+        withSourcesJar()
     }
 
     repositories {
         mavenCentral()
+    }
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                from components.java
+            }
+        }
+        repositories {
+            maven {
+                url = 'https://repo.mathsanalysis.com/private'
+                credentials {
+                    username = findProperty('user') ?: ''
+                    password = findProperty('token') ?: ''
+                }
+            }
+        }
     }
 
     dependencies {
