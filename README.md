@@ -84,6 +84,7 @@ Full usage docs live in [`docs/wiki/`](docs/wiki/Home.md):
 - [Getting Started](docs/wiki/Getting-Started.md) — depend on Axiom, run it
 - [Architecture](docs/wiki/Architecture.md) — modules, dependencies, threading
 - [Writing a Check](docs/wiki/Writing-a-Check.md) — the core workflow
+- [Axiom Detect](docs/wiki/Axiom-Detect.md) — the check-building toolkit, with examples
 - [API Reference](docs/wiki/API-Reference.md) — the toolkit type by type
 - [For AI Agents](docs/wiki/For-AI-Agents.md) — a dense map for automated tools
 

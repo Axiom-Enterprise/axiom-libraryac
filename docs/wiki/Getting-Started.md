@@ -17,7 +17,7 @@ cd axiom-libraryac
 ./gradlew build          # Windows: .\gradlew.bat build
 ```
 
-This compiles and tests all seven modules. Each module's jar is written to
+This compiles and tests all eight modules. Each module's jar is written to
 `<module>/build/libs/`.
 
 ## Consuming Axiom
@@ -63,6 +63,7 @@ your own plugin reaches it through `AxiomProvider.get()`.
 | Embed the full runtime in your own plugin | `axiom-core` (pulls in the rest) |
 | Use collision / physics directly | `axiom-world` |
 | Use the movement-prediction engine | `axiom-predict` |
+| Build heuristic, statistical or raytrace checks | `axiom-detect` |
 
 ## Running it
 
