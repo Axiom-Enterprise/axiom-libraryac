@@ -2,10 +2,11 @@ package com.github.axiom.ac.plugin;
 
 import com.github.axiom.ac.core.AxiomProvider;
 import com.github.axiom.ac.core.AxiomRuntime;
-import com.github.axiom.ac.core.MemoryStorageProvider;
+import com.github.axiom.ac.core.JsonStorageProvider;
 import com.github.axiom.ac.packet.PacketPipeline;
 import com.github.retrooper.packetevents.PacketEvents;
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
+import java.nio.file.Path;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -14,8 +15,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 /**
  * Paper plugin entry point. Bootstraps {@link AxiomRuntime} as a
- * shared singleton, wires the PacketEvents pipeline, and bridges
- * Bukkit player join/quit into the runtime.
+ * shared singleton, wires the PacketEvents pipeline, bridges Bukkit
+ * player join/quit into the runtime, and drives the inspection pass.
+ *
+ * <p>Inspection runs on the netty thread, immediately after each
+ * tracked player's movement packet is decoded — the thread on which
+ * {@code Check}s are contractually safe to run. Violations are
+ * persisted to {@code violations.json} in the plugin data folder.
  */
 public final class AxiomPlugin extends JavaPlugin implements Listener {
 
@@ -31,11 +37,14 @@ public final class AxiomPlugin extends JavaPlugin implements Listener {
     public void onEnable() {
         PacketEvents.getAPI().init();
 
-        runtime = new AxiomRuntime(new MemoryStorageProvider());
+        Path storageFile = getDataFolder().toPath().resolve("violations.json");
+        getDataFolder().mkdirs();
+        runtime = new AxiomRuntime(new JsonStorageProvider(storageFile));
         AxiomProvider.set(runtime);
 
+        // Inspection runs per movement packet, on the netty thread.
         PacketEvents.getAPI().getEventManager()
-                .registerListener(new PacketPipeline(runtime.players()));
+                .registerListener(new PacketPipeline(runtime.players(), runtime::inspect));
         getServer().getPluginManager().registerEvents(this, this);
 
         getLogger().info("Axiom AC enabled.");

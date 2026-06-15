@@ -18,6 +18,8 @@ and an event bus — to build your own.
 | [Architecture](Architecture.md) | Understand the modules, dependencies, and threading model |
 | [Writing a Check](Writing-a-Check.md) | Implement detection logic and react to flags |
 | [Axiom Detect](Axiom-Detect.md) | Build checks on the heuristic, statistical, raytrace and prediction scaffolding |
+| [Reach & Aim](Reach-and-Aim.md) | Build reach and aim checks with the combat & rotation utilities |
+| [Movement Prediction](Movement-Prediction.md) | Flag impossible movement with the prediction engine |
 | [API Reference](API-Reference.md) | Look up a specific type and its methods |
 | [For AI Agents](For-AI-Agents.md) | Get a compact, structured overview for tooling |
 

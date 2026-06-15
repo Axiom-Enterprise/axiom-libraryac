@@ -1,5 +1,6 @@
 package com.github.axiom.ac.predict;
 
+import com.github.axiom.ac.math.Rotation;
 import com.github.axiom.ac.math.Vec3;
 import java.util.Objects;
 
@@ -10,12 +11,24 @@ import java.util.Objects;
  * @param position feet position
  * @param velocity velocity (movement delta over the last tick)
  * @param yaw      horizontal look angle, in degrees
+ * @param pitch    vertical look angle, in degrees
  * @param onGround whether the player is supported from below
  */
-public record PlayerState(Vec3 position, Vec3 velocity, float yaw, boolean onGround) {
+public record PlayerState(Vec3 position, Vec3 velocity, float yaw, float pitch,
+                          boolean onGround) {
 
     public PlayerState {
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(velocity, "velocity");
+    }
+
+    /** A state with a level pitch of zero — kept for source compatibility. */
+    public PlayerState(Vec3 position, Vec3 velocity, float yaw, boolean onGround) {
+        this(position, velocity, yaw, 0.0f, onGround);
+    }
+
+    /** The look angle as a {@link Rotation}. */
+    public Rotation rotation() {
+        return new Rotation(yaw, pitch);
     }
 }

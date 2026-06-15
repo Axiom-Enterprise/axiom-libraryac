@@ -1,6 +1,8 @@
 package com.github.axiom.ac.api;
 
+import com.github.axiom.ac.math.Rotation;
 import com.github.axiom.ac.math.Vec3;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -28,4 +30,28 @@ public interface PlayerData {
 
     /** True when the player is reported as standing on ground. */
     boolean onGround();
+
+    /** The current look angle as a {@link Rotation}. */
+    default Rotation rotation() {
+        return new Rotation(yaw(), pitch());
+    }
+
+    /**
+     * The look angle before the most recent rotation change. The
+     * default — for a snapshot with no history — returns the current
+     * rotation; the packet-pipeline implementation overrides it with
+     * the genuine previous angle.
+     */
+    default Rotation previousRotation() {
+        return rotation();
+    }
+
+    /**
+     * Recent look angles, oldest first. The default returns just the
+     * current rotation; the packet-pipeline implementation overrides
+     * it with the bounded rotation history that aim analysis needs.
+     */
+    default List<Rotation> rotationHistory() {
+        return List.of(rotation());
+    }
 }

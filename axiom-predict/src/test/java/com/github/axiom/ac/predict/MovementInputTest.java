@@ -37,4 +37,28 @@ class MovementInputTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new MovementInput(0, -2, false, false));
     }
+
+    @Test
+    void legacyConstructorLeavesSneakUnpressed() {
+        assertFalse(new MovementInput(1, 0, false, false).sneak());
+    }
+
+    @Test
+    void exposesSneak() {
+        assertEquals(true, new MovementInput(0, 0, false, false, true).sneak());
+    }
+
+    @Test
+    void isSprintingForwardNeedsBothSprintAndForward() {
+        assertFalse(new MovementInput(0, 1, false, true).isSprintingForward());
+        assertFalse(new MovementInput(1, 0, false, false).isSprintingForward());
+        assertFalse(new MovementInput(-1, 0, false, true).isSprintingForward());
+        assertEquals(true, new MovementInput(1, 0, false, true).isSprintingForward());
+    }
+
+    @Test
+    void hasDirectionalInputDetectsAnyAxis() {
+        assertFalse(MovementInput.none().hasDirectionalInput());
+        assertEquals(true, new MovementInput(0, -1, false, false).hasDirectionalInput());
+    }
 }

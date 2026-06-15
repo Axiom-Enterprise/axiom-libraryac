@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
 
@@ -82,5 +83,54 @@ class TransactionManagerTest {
         manager.confirm(id, 1_030L);
 
         assertEquals(OptionalLong.of(30L), manager.lastRoundTrip());
+    }
+
+    /** Confirms one transaction sent at t=0 with the given round-trip. */
+    private static void confirmRoundTrip(TransactionManager manager, long roundTrip) {
+        int id = manager.sendTransaction(0L);
+        manager.confirm(id, roundTrip);
+    }
+
+    @Test
+    void smoothedRoundTripAndJitterAreEmptyBeforeAnyConfirm() {
+        TransactionManager manager = new TransactionManager(new RecordingSink());
+        assertEquals(OptionalDouble.empty(), manager.smoothedRoundTrip());
+        assertEquals(OptionalDouble.empty(), manager.jitter());
+    }
+
+    @Test
+    void firstSampleSeedsSmoothedRoundTripAndZeroJitter() {
+        TransactionManager manager = new TransactionManager(new RecordingSink());
+        confirmRoundTrip(manager, 50L);
+        assertEquals(OptionalDouble.of(50.0), manager.smoothedRoundTrip());
+        assertEquals(OptionalDouble.of(0.0), manager.jitter());
+    }
+
+    @Test
+    void smoothedRoundTripIsAnExponentialMovingAverage() {
+        TransactionManager manager = new TransactionManager(new RecordingSink());
+        confirmRoundTrip(manager, 100L);
+        confirmRoundTrip(manager, 200L);
+        // 0.8 * 100 + 0.2 * 200 = 120.
+        assertEquals(120.0, manager.smoothedRoundTrip().orElseThrow(), 1e-9);
+    }
+
+    @Test
+    void jitterRisesWithVariableLatency() {
+        TransactionManager manager = new TransactionManager(new RecordingSink());
+        confirmRoundTrip(manager, 100L);
+        confirmRoundTrip(manager, 200L);
+        // |200 - 100| weighted in at 0.2: 0.8 * 0 + 0.2 * 100 = 20.
+        assertEquals(20.0, manager.jitter().orElseThrow(), 1e-9);
+    }
+
+    @Test
+    void jitterStaysLowForStableLatency() {
+        TransactionManager manager = new TransactionManager(new RecordingSink());
+        for (int i = 0; i < 10; i++) {
+            confirmRoundTrip(manager, 60L);
+        }
+        assertEquals(0.0, manager.jitter().orElseThrow(), 1e-9);
+        assertEquals(60.0, manager.smoothedRoundTrip().orElseThrow(), 1e-9);
     }
 }

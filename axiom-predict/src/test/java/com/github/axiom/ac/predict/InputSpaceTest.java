@@ -11,8 +11,8 @@ class InputSpaceTest {
 
     @Test
     void enumeratesEveryCombination() {
-        // 3 forward * 3 strafe * 2 jump * 2 sprint.
-        assertEquals(36, InputSpace.all().size());
+        // 3 forward * 3 strafe * 2 jump * 2 sprint * 2 sneak.
+        assertEquals(72, InputSpace.all().size());
     }
 
     @Test

@@ -39,4 +39,17 @@ class Vec3Test {
     void normalizeZeroVectorReturnsZero() {
         assertEquals(new Vec3(0, 0, 0), new Vec3(0, 0, 0).normalize());
     }
+
+    @Test
+    void clampLengthShortensALongVector() {
+        Vec3 clamped = new Vec3(0, 0, 10).clampLength(4.0);
+        assertEquals(4.0, clamped.length(), EPS);
+        assertEquals(4.0, clamped.z(), EPS);
+    }
+
+    @Test
+    void clampLengthLeavesAShortVectorUnchanged() {
+        Vec3 shortVec = new Vec3(1, 2, 2);
+        assertEquals(shortVec, shortVec.clampLength(100.0));
+    }
 }

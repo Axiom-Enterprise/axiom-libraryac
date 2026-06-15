@@ -23,7 +23,7 @@ public final class WorldCache {
     public void setBlock(BlockPos pos, BlockState state) {
         Objects.requireNonNull(pos, "pos");
         Objects.requireNonNull(state, "state");
-        if (state == BlockState.UNKNOWN) {
+        if (state.isUnknown()) {
             blocks.remove(pos);
         } else {
             blocks.put(pos, state);
@@ -35,9 +35,13 @@ public final class WorldCache {
         return blocks.getOrDefault(pos, BlockState.UNKNOWN);
     }
 
-    /** True only when {@code pos} is cached and {@code SOLID}. */
+    /**
+     * True when {@code pos} is cached and carries collision. The name
+     * is kept for compatibility; with shaped blocks it now means
+     * "collidable", not strictly a full cube.
+     */
     public boolean isSolid(BlockPos pos) {
-        return blockAt(pos) == BlockState.SOLID;
+        return blockAt(pos).hasCollision();
     }
 
     /** Forgets every cached block. */

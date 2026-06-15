@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.github.axiom.ac.math.Rotation;
 import com.github.axiom.ac.math.Vec3;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -75,5 +76,37 @@ class PlayerDataImplTest {
         data.applyMovement(MovementUpdate.rotationOnly(10.0f, 0.0f, true));
 
         assertEquals(2, data.positionHistory().size());
+    }
+
+    @Test
+    void rotationHistoryGrowsOnlyWithRotationUpdates() {
+        PlayerDataImpl data = new PlayerDataImpl(UUID.randomUUID());
+        data.applyMovement(MovementUpdate.rotationOnly(45.0f, 0.0f, true));
+        data.applyMovement(MovementUpdate.rotationOnly(50.0f, 10.0f, true));
+        data.applyMovement(MovementUpdate.positionOnly(new Vec3(1, 64, 0), true));
+
+        assertEquals(2, data.rotationHistory().size());
+        assertEquals(new Rotation(45.0f, 0.0f), data.rotationHistory().get(0));
+        assertEquals(new Rotation(50.0f, 10.0f), data.rotationHistory().get(1));
+    }
+
+    @Test
+    void rotationUpdateRecordsThePreviousAngle() {
+        PlayerDataImpl data = new PlayerDataImpl(UUID.randomUUID());
+        data.applyMovement(MovementUpdate.rotationOnly(45.0f, 0.0f, true));
+        data.applyMovement(MovementUpdate.rotationOnly(50.0f, 10.0f, true));
+
+        assertEquals(new Rotation(45.0f, 0.0f), data.previousRotation());
+        assertEquals(new Rotation(50.0f, 10.0f), data.rotation());
+    }
+
+    @Test
+    void lastRotationDeltasReflectTheMostRecentTurn() {
+        PlayerDataImpl data = new PlayerDataImpl(UUID.randomUUID());
+        data.applyMovement(MovementUpdate.rotationOnly(10.0f, -5.0f, true));
+        data.applyMovement(MovementUpdate.rotationOnly(28.0f, 7.0f, true));
+
+        assertEquals(18.0, data.lastYawDelta(), EPS);
+        assertEquals(12.0, data.lastPitchDelta(), EPS);
     }
 }
