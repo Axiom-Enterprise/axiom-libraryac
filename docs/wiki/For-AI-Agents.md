@@ -19,9 +19,9 @@ physics, prediction, event bus) for building one.
 | Group | `com.github.axiom.ac` |
 | Version | `1.0-SNAPSHOT` |
 | Package root | `com.github.axiom.ac` |
-| Modules | `axiom-math`, `axiom-api`, `axiom-packet`, `axiom-world`, `axiom-core`, `axiom-plugin`, `axiom-predict` |
+| Modules | `axiom-math`, `axiom-api`, `axiom-packet`, `axiom-world`, `axiom-core`, `axiom-plugin`, `axiom-predict`, `axiom-detect` |
 | External deps | PacketEvents 2.12.1 (`compileOnly`), Paper API 1.21.x (`compileOnly`), Gson 2.11.0 |
-| Tests | 166 unit tests (JUnit 6), all passing |
+| Tests | 243 unit tests (JUnit 6), all passing |
 | Published artifacts | none — build from source |
 
 ## Build / test commands
@@ -52,11 +52,21 @@ Windows: use `.\gradlew.bat`. The shell in this environment is PowerShell.
 - `axiom-predict` — `MovementInput`, `InputSpace`, `PlayerState`,
   `PredictionEngine`, `PredictionResult`, `MovementPredictor`. Deps:
   `axiom-math`, `axiom-world`.
+- `axiom-detect` — check-building toolkit, one subpackage per concern:
+  `session.SessionStore`; `signal.Confidence`; `heuristic.{ViolationLevel,
+  HeuristicSignal, AbstractHeuristicCheck}`; `statistical.{StatisticalCriterion,
+  ZScoreCriterion, IqrCriterion, RegularityCriterion, PeriodicityCriterion,
+  SampleAccumulator, AbstractStatisticalCheck}`; `raytrace.{LookVectors, Hitbox,
+  RayHit, RaytraceEngine, ReachResolver, LineOfSight}`; `prediction.PredictionProbe`.
+  Ships no concrete checks. Deps: `axiom-api`, `axiom-math`, `axiom-world`,
+  `axiom-predict`.
 
 ## Dependency order (compile leaves first)
 
 `axiom-math` → `axiom-api` → `axiom-packet` → `axiom-world` → `axiom-core` →
 `axiom-plugin`. `axiom-predict` depends on `axiom-math` + `axiom-world` only.
+`axiom-detect` depends on `axiom-api` + `axiom-math` + `axiom-world` +
+`axiom-predict`; nothing depends on it (consumers opt in).
 
 ## The one workflow that matters
 

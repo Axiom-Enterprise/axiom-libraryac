@@ -23,9 +23,13 @@ axiom-plugin                  axiom-predict┘
 | `axiom-core` | `axiom-api`, `axiom-math`, `axiom-packet`, `axiom-world` | Gson |
 | `axiom-plugin` | `axiom-core`, `axiom-packet`, `axiom-api`, `axiom-world` | Paper API, PacketEvents (`compileOnly`) |
 | `axiom-predict` | `axiom-math`, `axiom-world` | none |
+| `axiom-detect` | `axiom-api`, `axiom-math`, `axiom-world`, `axiom-predict` | none |
 
 `axiom-math`, `axiom-world` and `axiom-predict` are pure, dependency-free and
 fully deterministic — usable on their own, outside any Minecraft context.
+`axiom-detect` stacks on top of them: it bundles the check-building toolkit
+(heuristic and statistical check bases, the raytrace engine, the prediction
+probe) and, like the rest of Axiom, ships no concrete checks of its own.
 
 ## Data flow
 

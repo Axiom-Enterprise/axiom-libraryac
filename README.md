@@ -6,7 +6,8 @@ Axiom AC is *not* a finished anticheat — it ships **no detection checks**. It 
 the framework you build an anticheat *on*: mathematical primitives, a
 PacketEvents-backed packet pipeline with latency compensation, a server-side
 world model with collision and physics, a deterministic movement-prediction
-engine, and a GrimAPI-style event bus.
+engine, check-building scaffolding (heuristic, statistical, raytrace), and a
+GrimAPI-style event bus.
 
 You write the `Check`s. Axiom gives you the tools and the runtime.
 
@@ -30,6 +31,7 @@ You write the `Check`s. Axiom gives you the tools and the runtime.
 | `axiom-core`    | Runtime wiring, check registry with fault isolation, storage providers        |
 | `axiom-plugin`  | The thin Paper plugin that bootstraps everything                              |
 | `axiom-predict` | Deterministic movement-prediction engine (the offset cheat signal)            |
+| `axiom-detect`  | Check-building toolkit: heuristic & statistical check bases, raytrace engine, prediction probe |
 
 ## Quick taste
 
@@ -65,7 +67,7 @@ runtime.eventBus().channel(FlagEvent.class).subscribe(event ->
 
 ```bash
 ./gradlew build        # build and test every module
-./gradlew test         # run the full test suite (166 tests)
+./gradlew test         # run the full test suite (243 tests)
 ```
 
 On Windows use `.\gradlew.bat`.
@@ -91,7 +93,8 @@ plans in [`docs/superpowers/plans/`](docs/superpowers/plans).
 
 ## Status
 
-All seven modules of the design are implemented and tested (166 unit tests).
+All seven modules of the original design, plus the `axiom-detect`
+check-building toolkit, are implemented and tested (243 unit tests).
 The PacketEvents/Paper glue compiles against the real dependencies but should
 be exercised on a live server before production use. The `axiom-predict`
 physics constants are a documented baseline approximation — see

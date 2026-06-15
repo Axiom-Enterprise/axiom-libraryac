@@ -153,6 +153,92 @@ Package `com.github.axiom.ac.predict`. The movement-prediction engine.
 
 ---
 
+## axiom-detect
+
+Package root `com.github.axiom.ac.detect`. The check-building toolkit: one
+subpackage per concern. Ships no concrete checks — it is the scaffolding a
+check author extends. Depends on `axiom-api`, `axiom-math`, `axiom-world`,
+`axiom-predict`.
+
+### Per-player state — `detect.session`
+
+- **`SessionStore<S>`** — concurrent, UUID-keyed store of per-player state, so a
+  stateless `Check` can keep memory between inspections. `getOrCreate(uuid,
+  factory)`, `get(uuid)`, `put`, `remove`, `clear`, `size`. Each value is
+  thread-confined to its player; the map handles join/quit bookkeeping.
+
+### Confidence — `detect.signal`
+
+- **`Confidence`** — maps a raw magnitude onto the `[0, 1]` a `Violation`
+  requires: `clamp(v)`, `ramp(value, floor, ceiling)` (0 at the floor → 1 at the
+  ceiling), `saturating(value, scale)`.
+
+### Heuristic checks — `detect.heuristic`
+
+- **`ViolationLevel`** — mutable, non-negative suspicion accumulator: `add`,
+  `decay` (floored at 0), `level`, `reset`. Thread-confined.
+- **`HeuristicSignal(boolean failed, double weight, String detail)`** — the
+  outcome of one evaluation. `pass()`, `fail(weight, detail)`.
+- **`AbstractHeuristicCheck(id, flagThreshold, saturationLevel, decayPerPass)`**
+  — base `Check` for the threshold-with-decay pattern. Implement
+  `evaluate(PlayerData)` → `HeuristicSignal`; the base accumulates weights into a
+  per-player `ViolationLevel`, decays it on clean ticks, and flags once the level
+  crosses the threshold, with confidence ramped toward the saturation level.
+  `forget(uuid)`, `reset()`.
+
+### Statistical checks — `detect.statistical`
+
+- **`StatisticalCriterion`** — SPI: `OptionalDouble score(double[] samples)`.
+  Empty means "not enough data"; a higher score is more anomalous. Units are
+  criterion-defined, so pair each with a matching threshold.
+- **`ZScoreCriterion(minSamples)`** — absolute z-score of the latest sample
+  against the window.
+- **`IqrCriterion(minSamples)`** — how far the latest sample escapes the Tukey
+  IQR fences, in IQRs (0 when inside); robust to the very outliers it hunts.
+- **`RegularityCriterion(buckets, minSamples)`** — entropy deficit
+  `log2(buckets) − H` over a histogram of the window; high for artificially
+  regular input.
+- **`PeriodicityCriterion(minSamples)`** — GCD of the rounded interval samples;
+  the score is the common period, so the threshold is "smallest suspicious
+  period".
+- **`SampleAccumulator(windowSize)`** — per-player sliding windows:
+  `record(uuid, value)` returns the retained samples, `mean(uuid)`, `forget`,
+  `reset`.
+- **`AbstractStatisticalCheck(id, criterion, windowSize, flagScore, saturationScore)`**
+  — base `Check`: implement `sample(PlayerData)` → `OptionalDouble`; the base
+  feeds a per-player window, scores it with the criterion, and flags above the
+  flag score with confidence ramped toward the saturation score. `forget(uuid)`,
+  `reset()`.
+
+### Raytrace engine — `detect.raytrace`
+
+- **`LookVectors`** — Minecraft look math: `direction(yaw, pitch)` (unit vector,
+  matching `Location.getDirection()`), `eyePosition(feet, eyeHeight)`; constants
+  `STANDING_EYE_HEIGHT`, `SNEAKING_EYE_HEIGHT`.
+- **`Hitbox<T>(T target, Aabb box)`** — a target box plus the caller's opaque
+  handle for what it represents.
+- **`RayHit<T>(Hitbox<T> hitbox, double distance, Vec3 point)`** — an
+  intersection; `distance` and `point` are world-space.
+- **`RaytraceEngine(CollisionEngine)`** — `nearest(ray, maxDistance, targets)`
+  (closest hitbox struck, ignoring occlusion) and `nearestVisible(eye,
+  direction, maxDistance, targets)` (closest hitbox with a clear line of sight).
+- **`ReachResolver`** — combat reach: `distance(eye, direction, target)` and
+  `minimumDistance(eyePositions, direction, target)` (the latency-compensated
+  smallest reach across candidate eye positions). Expand the target box first for
+  hitbox tolerance.
+- **`LineOfSight`** — `clear(from, to, collision)`: true when no cached solid
+  block lies between the points (whole-block resolution).
+
+### Prediction probe — `detect.prediction`
+
+- **`PredictionProbe(MovementPredictor, windowSize)`** — drives the stateless
+  predictor from a live state stream. `observe(uuid, PlayerState)` returns the
+  prediction offset against the previous observation (0 on the first);
+  `averageOffset(uuid)` smooths it over a rolling window; `forget(uuid)`. The
+  bridge from `axiom-predict` into the heuristic/statistical check bases.
+
+---
+
 ## Conventions
 
 - All value types are immutable `record`s; data structures are `final` classes.

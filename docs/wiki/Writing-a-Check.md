@@ -128,6 +128,77 @@ Checks run when you call `AxiomRuntime.inspect(playerId)`. Wire it to a
 scheduler or your own packet hook — see
 [Getting Started → Triggering inspections](Getting-Started.md#triggering-inspections).
 
+## Build on the `axiom-detect` scaffolding
+
+Most checks share the same shape: accumulate evidence, smooth out noise, flag
+only a sustained pattern. `axiom-detect` provides that shape as base classes so
+you write only the per-tick judgement — it ships no concrete checks itself.
+
+**Heuristic** — extend `AbstractHeuristicCheck` and return a `HeuristicSignal`.
+The base keeps a per-player violation level, decays it on clean ticks, and flags
+once it crosses the threshold:
+
+```java
+import com.github.axiom.ac.detect.heuristic.*;
+
+public final class SpeedCheck extends AbstractHeuristicCheck {
+
+    private static final double MAX_HORIZONTAL = 0.8;
+
+    public SpeedCheck() {
+        // flag at level 5, full confidence by 10, shed 1 per clean tick
+        super("speed", 5.0, 10.0, 1.0);
+    }
+
+    @Override
+    protected HeuristicSignal evaluate(PlayerData data) {
+        double horizontal = Math.hypot(data.velocity().x(), data.velocity().z());
+        return horizontal > MAX_HORIZONTAL
+                ? HeuristicSignal.fail(1.0, "horizontal speed " + horizontal)
+                : HeuristicSignal.pass();
+    }
+}
+```
+
+**Statistical** — extend `AbstractStatisticalCheck`, pull one sample per tick,
+and let a `StatisticalCriterion` (`ZScoreCriterion`, `IqrCriterion`,
+`RegularityCriterion`, `PeriodicityCriterion`) score the rolling window:
+
+```java
+import com.github.axiom.ac.detect.statistical.*;
+
+public final class AimRegularityCheck extends AbstractStatisticalCheck {
+
+    public AimRegularityCheck() {
+        // 40-sample window; flag at 2.0 bits of entropy deficit, saturate at 2.8
+        super("aim-regularity", new RegularityCriterion(8, 40), 40, 2.0, 2.8);
+    }
+
+    @Override
+    protected OptionalDouble sample(PlayerData data) {
+        return OptionalDouble.of(data.yaw());
+    }
+}
+```
+
+Both bases hold per-player state for you — call `forget(uuid)` from your
+`PlayerQuitEvent` subscriber.
+
+**Raytrace** — for reach and line-of-sight, the `raytrace` subpackage works off
+the eye ray. Expand the target box to absorb the client/server hitbox mismatch:
+
+```java
+import com.github.axiom.ac.detect.raytrace.*;
+
+RaytraceEngine raytrace = new RaytraceEngine(runtime.collision());
+Vec3 eye = LookVectors.eyePosition(data.position(), LookVectors.STANDING_EYE_HEIGHT);
+Vec3 look = LookVectors.direction(data.yaw(), data.pitch());
+OptionalDouble reach = ReachResolver.distance(eye, look, targetBox.expand(0.1, 0.1, 0.1));
+```
+
+See [API Reference → axiom-detect](API-Reference.md#axiom-detect) for the full
+surface.
+
 ## Checklist
 
 - [ ] `id()` is stable and unique.

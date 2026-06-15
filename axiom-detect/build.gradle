@@ -1,0 +1,12 @@
+// axiom-detect: the check-building toolkit. Heuristic and statistical
+// check scaffolding, a raytrace engine for reach/line-of-sight math,
+// and a prediction-offset probe. Like the rest of Axiom it ships no
+// concrete checks — it is the framework a check author extends.
+// Depends on axiom-api (the Check SPI), axiom-math, axiom-world (for
+// world occlusion), and axiom-predict (for the prediction bridge).
+dependencies {
+    implementation project(':axiom-api')
+    implementation project(':axiom-math')
+    implementation project(':axiom-world')
+    implementation project(':axiom-predict')
+}
