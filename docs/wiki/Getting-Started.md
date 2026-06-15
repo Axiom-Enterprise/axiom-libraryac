@@ -91,10 +91,11 @@ AxiomProvider.set(runtime);
 
 ## Triggering inspections
 
-Axiom decodes packets into `PlayerData` continuously, but **checks are run when
-you call `AxiomRuntime.inspect(playerId)`**. Wire this to whatever cadence you
-want — a per-tick scheduler, or your own packet hook. Each call runs every
-registered check for that player and publishes a `FlagEvent` per violation.
+The bundled `axiom-plugin` wires inspection to fire after each movement packet,
+so registered checks run automatically. When you **embed** the runtime yourself,
+you drive the cadence: call `AxiomRuntime.inspect(playerId)` from a per-tick
+scheduler or your own packet hook. Each call runs every registered check for
+that player and publishes a `FlagEvent` per violation.
 
 ```java
 // Example: inspect every tracked player each server tick.

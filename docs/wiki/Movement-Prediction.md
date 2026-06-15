@@ -60,6 +60,12 @@ A legitimate move is explained by *some* input, so the offset stays
 near zero. A move no input reproduces leaves a large offset — the
 cheat signal.
 
+> **Stateful helper.** `bestPrediction` is stateless — you hold the previous
+> state yourself. To drive it from a live stream and react to a *sustained* gap
+> rather than one noisy tick, `axiom-detect.prediction.PredictionProbe` remembers
+> each player's last state and keeps a rolling window of offsets. See
+> [Axiom Detect](Axiom-Detect.md#prediction-probe).
+
 ## Scoring the offset
 
 A raw offset is never exactly zero: floating-point drift and the
@@ -100,5 +106,6 @@ context, which the anticheat already knows from the server.
 ## See also
 
 - [Writing a Check](Writing-a-Check.md) — the check workflow and the event bus.
+- [Axiom Detect](Axiom-Detect.md) — the `PredictionProbe` that drives this engine statefully.
 - [API Reference → axiom-predict](API-Reference.md#axiom-predict) — every type.
 - [Architecture](Architecture.md) — how the modules fit together.

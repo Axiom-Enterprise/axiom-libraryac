@@ -22,6 +22,13 @@ rotation tracking those checks need. This page shows how to build a
 The packet pipeline appends to the history on every rotation packet, so
 a check reads it directly with no bookkeeping of its own.
 
+> **Higher-level engine.** This page works with the raw `axiom-math`
+> primitives. When you need to cast against many entity hitboxes at once,
+> drop targets hidden behind blocks, or sweep candidate eye positions for
+> latency, `axiom-detect.raytrace` (`RaytraceEngine`, `ReachResolver`,
+> `LineOfSight`) wraps these primitives for exactly that — see
+> [Axiom Detect](Axiom-Detect.md#raytrace-engine).
+
 ## Reach
 
 Reach is the distance from the attacker's **eye** to the nearest point
@@ -113,4 +120,5 @@ one alone. Set the `Violation` confidence from how many agree.
 ## See also
 
 - [Writing a Check](Writing-a-Check.md) — the check workflow and the event bus.
+- [Axiom Detect](Axiom-Detect.md) — the raytrace engine and check bases built on these primitives.
 - [API Reference](API-Reference.md) — every type, method by method.

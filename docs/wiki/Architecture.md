@@ -53,8 +53,10 @@ PacketEvents ──▶ PacketPipeline ──▶ PlayerDataImpl.applyMovement(Mov
    it to that player's `PlayerDataImpl`.
 3. `TransactionManager` issues ping/pong transactions; their round trip bounds
    when the client had received prior server state (latency compensation).
-4. When you call `AxiomRuntime.inspect(uuid)`, `CheckRegistry` runs every
-   registered `Check` against the player's data.
+4. `axiom-plugin` wires inspection to fire after each movement packet; an
+   embedder instead calls `AxiomRuntime.inspect(uuid)` on its own cadence.
+   Either way, `CheckRegistry` runs every registered `Check` against the
+   player's data.
 5. Each `Violation` becomes a `FlagEvent`, published on the `EventBus`.
 6. A `FlagEvent` that no subscriber cancelled is persisted via the
    `StorageProvider`.

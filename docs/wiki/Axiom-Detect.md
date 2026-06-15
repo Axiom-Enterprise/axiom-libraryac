@@ -64,6 +64,11 @@ Confidence.ramp(v, floor, ceiling);  // 0 at floor, 1 at ceiling, linear between
 Confidence.saturating(v, scale);     // v / scale, capped at 1
 ```
 
+`Confidence` is the small subset these check bases lean on. For richer curves —
+a logistic `softScore`, a `sigmoid`, raw `minMax` — reach for
+[`axiom-math.Normalizer`](API-Reference.md#axiom-math); `Confidence` and
+`Normalizer` are interchangeable wherever a `[0, 1]` is wanted.
+
 ---
 
 ## Heuristic checks
@@ -229,6 +234,14 @@ The raytrace subpackage answers geometry questions about the eye ray: *what did
 the player point at, how far was it, and could they see it?* It is the basis for
 reach, hitbox, and aim checks. All of it is pure math over `axiom-math` and the
 cached world from `axiom-world`.
+
+> **Two layers, one job.** `axiom-math` holds the primitives — `CombatMath`
+> (eye, hitbox, reach distance), `Rotation` (look vectors, angle deltas) and
+> `AimAnalysis` (rotation-pattern analysis). `axiom-detect.raytrace` is the
+> higher layer built for checks: a set of hitboxes at once, world occlusion, and
+> a latency sweep over candidate eye positions. Use the primitives for a single
+> measurement; use the engine when you need "nearest visible target" or
+> "minimum reach across the tick". See [Reach & Aim](Reach-and-Aim.md).
 
 `LookVectors` turns a player's rotation into that ray, matching Minecraft's own
 `Location.getDirection()`:
@@ -398,5 +411,7 @@ runtime.eventBus().channel(com.github.axiom.ac.api.event.PlayerQuitEvent.class)
 ## See also
 
 - [Writing a Check](Writing-a-Check.md) — the underlying `Check` SPI and the flag flow
+- [Reach & Aim](Reach-and-Aim.md) — the `axiom-math` combat/rotation primitives the raytrace engine builds on
+- [Movement Prediction](Movement-Prediction.md) — the prediction engine the probe drives
 - [API Reference → axiom-detect](API-Reference.md#axiom-detect) — every type and signature
 - [Architecture](Architecture.md) — where `axiom-detect` sits in the module graph

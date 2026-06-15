@@ -2,7 +2,8 @@
 
 Axiom AC is a **Minecraft (Paper) anticheat toolkit**. It ships no detection
 checks; it gives you the framework — math, packets, world, physics, prediction,
-and an event bus — to build your own.
+reach/aim geometry, check-building scaffolding, and an event bus — to build your
+own.
 
 ## Who this wiki is for
 
@@ -35,7 +36,8 @@ and an event bus — to build your own.
 5. You subscribe to `FlagEvent` and decide the consequence (alert, kick, ban).
 
 Everything else — the math toolkit, the collision engine, the physics
-simulator, the prediction engine — exists so your checks can be precise.
+simulator, the prediction engine, the raytrace engine, and the heuristic and
+statistical check scaffolding — exists so your checks can be precise.
 
 ## Core principle
 
